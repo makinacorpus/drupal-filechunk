@@ -1,0 +1,395 @@
+<?php
+/**
+ * @file
+ * The module.
+ */
+
+/**
+ * We do require this.
+ */
+require_once __DIR__ . '/filechunk.element.inc';
+
+/**
+ * And this too.
+ */
+require_once __DIR__ . '/filechunk.field.inc';
+
+/**
+ * Implements hook_menu().
+ */
+function filechunk_menu() {
+  $items = [];
+  $items['system/chunk-upload'] = [
+    'page callback'     => 'filechunk_upload_callback',
+    'access callback'   => 'filechunk_upload_access',
+    'type'              => MENU_CALLBACK,
+  ];
+  $items['system/chunk-remove'] = [
+    'page callback'     => 'filechunk_remove_callback',
+    'access callback'   => 'filechunk_remove_access',
+    'type'              => MENU_CALLBACK,
+  ];
+  $items['system/chunk-upload/test'] = [
+    'page callback'     => 'drupal_get_form',
+    'page arguments'    => ['filechunk_test_form'],
+    'access arguments'  => ['this permission will not exist'],
+    'type'              => MENU_CALLBACK,
+  ];
+  return $items;
+}
+
+/**
+ * Implements hook_admin_paths().
+ */
+function filechunk_admin_paths() {
+  return [
+    'system/chunk-upload/test' => true,
+    'system/chunk-upload/test/*' => true,
+  ];
+}
+
+/**
+ * Implements hook_theme().
+ */
+function filechunk_theme() {
+  return [
+    'filechunk_file_input' => [
+      'render element' => 'element',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_library().
+ */
+function filechunk_library() {
+  return [
+    'moxie' => [
+      'title' => "mOxie",
+      'version' => '1.4.1',
+      'website' => "https://github.com/moxiecode/moxie",
+      'js' => [drupal_get_path('module', 'filechunk') . '/moxie-1.4.1/bin/js/moxie.min.js' => []],
+    ],
+    'widget' => [
+      'title' => "Chunked file widget",
+      'version' => '1.0',
+      'js' => [drupal_get_path('module', 'filechunk') . '/filechunk.js' => []],
+      'dependencies' => [['filechunk', 'moxie']],
+    ],
+  ];
+}
+
+/**
+ * Get upload directory.
+ *
+ * @return string
+ */
+function filechunk_upload_dir_get() {
+  // return variable_get('filechunk_upload_directory', "temporary://filechunk") . '/';
+  return "temporary://filechunk/";
+}
+
+/**
+ * Menu access callback.
+ */
+function filechunk_remove_access() {
+  if ('POST' !== $_SERVER['REQUEST_METHOD']) {
+    return false;
+  }
+  if (empty($_SERVER['HTTP_X_FILE_ID'])) {
+    return false;
+  }
+  if (empty($_SERVER['HTTP_X_FILE_TOKEN']) || !drupal_valid_token($_SERVER['HTTP_X_FILE_TOKEN'])) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Menu callback.
+ */
+function filechunk_remove_callback() {
+  global $user;
+
+  $fid        = $_SERVER['HTTP_X_FILE_ID'];
+  $file       = file_load($fid);
+  $directory  = filechunk_upload_dir_get();
+
+  if (!$file) {
+    return drupal_json_output(['remove' => false]);
+  }
+
+  $directory = file_stream_wrapper_uri_normalize($directory);
+  if (0 !== strpos($file->uri, $directory)) {
+    return drupal_json_output(['remove' => false]);
+  }
+
+  if ($user->uid != $file->uid) {
+    return drupal_json_output(['remove' => false]);
+  }
+
+  unlink($file->uri);
+  file_delete($file);
+
+  return drupal_json_output(['remove' => true]);
+}
+
+/**
+ * Menu access callback.
+ */
+function filechunk_upload_access() {
+  if ('POST' !== $_SERVER['REQUEST_METHOD']) {
+    return false;
+  }
+  if (empty($_SERVER['HTTP_X_FILE_NAME'])) {
+    return false;
+  }
+  if (empty($_SERVER['HTTP_CONTENT_RANGE']) || !filechunk_parse_range($_SERVER['HTTP_CONTENT_RANGE'])) {
+    return false;
+  }
+  if (empty($_SERVER['HTTP_X_FILE_TOKEN']) || !drupal_valid_token($_SERVER['HTTP_X_FILE_TOKEN'])) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Every one needs to die sometime.
+ *
+ * @param string $message
+ */
+function filechunk_upload_die($message) {
+  die($message);
+}
+
+/**
+ * Parse content range header.
+ *
+ * @param string $contentRange
+ */
+function filechunk_parse_range($contentRange) {
+  $matches = [];
+  if (!preg_match('@^bytes (\d+)-(\d+)/(\d+)$@', trim($contentRange), $matches)) {
+    return false;
+  }
+  list(, $start, $stop, $filesize) = $matches;
+  if ($filesize < $start) {
+    return false; // Invalid request.
+  }
+  if ($filesize < $stop) {
+    return false; // Invalid request.
+  }
+  if ($stop < $start) {
+    return false; // Invalid request.
+  }
+  if ($start === $stop) {
+    return false; // Cannot import '0' sized file.
+  }
+  return [$start, $stop, $filesize];
+}
+
+/**
+ * Get managed file from file path.
+ *
+ * @param string $filename
+ *
+ * @return stdClass
+ */
+function filechunk_managed_file_get($filename) {
+  global $user;
+
+  $uri = file_stream_wrapper_uri_normalize($filename);
+
+  // Try to load the file whenever it exists as temporary.
+  $fid = db_query("SELECT fid FROM {file_managed} WHERE uri = ?", [$uri])->fetchField();
+  if ($fid) {
+    $file = file_load($fid);
+    // @todo Should check a bit more for security?
+    // In all case harm has been done since we did write the file.
+  } else {
+    $file = new stdClass();
+  }
+
+  // File has been finished, write the Drupal managed file and return the
+  // new file identifier to the JavaScript file.
+  $file->uid = $user->uid;
+  $file->filename = drupal_basename($uri);
+  $file->uri = $uri;
+  $file->filemime = file_get_mimetype($uri);
+  $file->filesize = @filesize($uri);
+  $file->timestamp = time();
+  $file->status = 0;
+  file_save($file);
+
+  return $file;
+}
+
+/**
+ * Menu callback.
+ *
+ * I have to admit that the http://www.drupal.org/project/plupload module did
+ * help me a lot writing this code, even thought I made it diverge a lot.
+ */
+function filechunk_upload_callback() {
+
+  $filename   = $_SERVER['HTTP_X_FILE_NAME'];
+  $directory  = filechunk_upload_dir_get();
+  $absolute   = $directory . $filename;
+
+  list($start, $stop, $filesize) = filechunk_parse_range($_SERVER['HTTP_CONTENT_RANGE']);
+  $start      = (int)$start;
+  $stop       = (int)$stop;
+  $filesize   = (int)$filesize;
+  $maxlength  = $stop - $start;
+
+  if (!file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+    return filechunk_upload_die("Cannot create temporary directory");
+  }
+
+  // Check for file metadata.
+  $metadataFilename = $absolute . '.metadata.json';
+
+  if (!file_exists($metadataFilename)) {
+    $metadata = (object)['offset' => 0, 'size' => $filesize];
+
+    // Create the file with allocated size.
+    if (file_exists($absolute)) {
+      return filechunk_upload_die("Cannot overwrite another file");
+    }
+    // This solution comes from https://stackoverflow.com/a/3608405/5826569
+    // Best answer ever to this!
+    if (!$out = fopen($absolute, 'cb')) { // Allows overwrite.
+      return filechunk_upload_die("Cannot create file");
+    }
+    fseek($out, $filesize - 1);
+    fwrite($out, 'a');
+
+  } else {
+
+    $metadata = @json_decode(file_get_contents($metadataFilename));
+    if (!$metadata) {
+      // Delete the metadata file since it's invalid.
+      unlink($metadataFilename);
+      return filechunk_upload_die("Unable to load metadata");
+    }
+
+    if (!file_exists($absolute)) {
+      // Delete the metadata file since it's probably something that stalled.
+      unlink($metadataFilename);
+      return filechunk_upload_die("File should exists");
+    }
+
+    if ($metadata->size !== $filesize) {
+      // If filesize does not match, this probably means that another file is
+      // being sent or the JavaScript is corrupted.
+      return filechunk_upload_die("File size does not match");
+    }
+
+    if (!$out = fopen($absolute, 'cb')) {
+      return filechunk_upload_die("Could not open output stream");
+    }
+  }
+
+  if ($metadata->offset !== $start) {
+    fclose($out);
+    if ($filesize <= $metadata->offset) {
+      $file = filechunk_managed_file_get($absolute);
+      @unlink($metadataFilename);
+      return drupal_json_output([
+        'finished'  => true,
+        'fid'       => $file->fid,
+        'writen'    => 0,
+        'hash'      => md5_file($file->uri),
+        'filename'  => $file->filename,
+      ]);
+    } else {
+      return drupal_json_output([
+        'finished'  => false,
+        'resume'    => true,
+        'writen'    => 0,
+        'offset'    => $metadata->offset,
+      ]);
+    }
+  }
+
+  // Read binary input stream and prey.
+  $in = fopen("php://input", "rb");
+  if (!$in) {
+    fclose($out);
+    return filechunk_upload_die("Could not open input stream");
+  }
+
+  // Write chunk into file.
+  if (-1 === fseek($out, $start)) {
+    return filechunk_upload_die("Could not seek output stream");
+  }
+  $writen = stream_copy_to_stream($in, $out, $maxlength);
+  fclose($out);
+  fclose($in);
+
+  $metadata->offset = $stop;
+  file_put_contents($metadataFilename, json_encode($metadata));
+
+  if ($filesize <= $stop) {
+    $file = filechunk_managed_file_get($absolute);
+    @unlink($metadataFilename);
+    return drupal_json_output([
+      'finished'  => true,
+      'fid'       => $file->fid,
+      'writen'    => $writen,
+      'hash'      => md5_file($file->uri),
+      'filename'  => $file->filename,
+    ]);
+  } else {
+    return drupal_json_output([
+      'finished'  => false,
+      'writen'    => $writen,
+      'offset'    => $metadata->offset,
+    ]);
+  }
+}
+
+/**
+ * Simple test form.
+ */
+function filechunk_test_form($form, &$form_state, $fid = null) {
+
+  $form['#tree'] = true;
+  $form['#form_horizontal'] = true;
+
+  $form['mandatory'] = [
+    '#type'     => 'textfield',
+    '#title'    => t("Some mandatory text"),
+    '#required' => true,
+  ];
+
+  $form['foo']['bar']['my_file'] = [
+    '#title'  => t("Please upload your file"),
+    '#type'   => 'file_chunked',
+  ];
+
+  if (isset($fid) && ($file = file_load($fid))) {
+    $form['foo']['bar']['my_file']['#default_value'] = $file;
+  }
+
+  $form['actions']['#type'] = 'actions';
+  $form['actions']['submit'] = [
+    '#type'   => 'submit',
+    '#value'  => t("Hop hop!"),
+  ];
+
+  return $form;
+}
+
+/**
+ * Simple test form submit.
+ */
+function filechunk_test_form_submit($form, &$form_state) {
+  $file = $form_state['values']['foo']['bar']['my_file'];
+  if ($file) {
+    drupal_set_message(t("File has been saved."));
+    $form_state['redirect'] = 'system/chunk-upload/test/' . $file->fid;
+    $file->status = 1;
+    file_save($file);
+  }
+}

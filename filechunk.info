@@ -1,0 +1,3 @@
+name = Chunked file upload widget
+description = JavaScript based chunked file upload widget with HTML file input fallback
+core = 7.x
