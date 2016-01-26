@@ -13,14 +13,12 @@ function filechunk_element_info() {
     // be used only this way.
     'file_chunked' => [
       '#input'              => true,
-      // '#pre_render' => array('file_managed_file_pre_render'),
-      // '#theme' => 'file_managed_file',
-      // '#theme_wrappers' => array('form_element'),
-      // '#upload_validators' => array(),
       '#process'            => ['filechunk_element_process'],
       '#value_callback'     => 'filechunk_element_value',
       '#element_validate'   => ['filechunk_element_validate'],
       '#upload_validators'  => [],
+      // Use the next for Field API compatibility only.
+      '#convert_to_array'   => false,
       '#append_remove'      => true,
       '#upload_location'    => null,
       '#attached'           => ['library' => [['filechunk', 'widget']]],
@@ -66,6 +64,15 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
 
   $file = null;
   $denied = false;
+  $default = null;
+
+  if (isset($element['#default_value'])) {
+    if (is_numeric($element['#default_value'])) {
+      $default = file_load($element['#default_value']);
+    } else if (is_object($element['#default_value']) && property_exists($element['#default_value'], 'fid')) {
+      $default = $element['#default_value'];
+    }
+  }
 
   if ($input) {
 
@@ -74,6 +81,11 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
     }
 
     if (!empty($input['fid'])) {
+      // @todo Fallback won't work because of this.
+      //   We need to check if $_FILES is not empty before.
+      if ($default && $default->fid == $input['fid']) {
+        return $default;
+      }
       // We might have no uploaded file actually, but we probably have a few
       // values that comes from the JavaScript, attempt to find this.
       if (empty($input['hash'])) {
@@ -113,14 +125,7 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
   // other cases are inputs. If the fid was messed-up with and user has no
   // access to the given file, just drop it and use default once again.
   if (!$input || $denied) {
-    $file = null;
-    if (isset($element['#default_value'])) {
-      if (is_numeric($element['#default_value'])) {
-        $file = file_load($element['#default_value']);
-      } else if (is_object($element['#default_value']) && property_exists($element['#default_value'], 'fid')) {
-        $file = $element['#default_value'];
-      }
-    }
+    return $default;
   }
 
   return $file;
@@ -228,6 +233,12 @@ function filechunk_element_process($element) {
     }
   }
 
+  // This is a workaround for the http://github.com/makinacorpus/drupal-badm
+  // bootstrap based admin theme.
+  foreach (element_children($element) as $key) {
+    $element[$key]['#form_horizontal'] = false;
+  }
+
   $settings = [
     // Keep a session driven token, there is no other way in order to
     // avoid form caching.
@@ -247,5 +258,9 @@ function filechunk_element_process($element) {
  * Valiate filechunk element.
  */
 function filechunk_element_validate(&$element, &$form_state, $form) {
-  form_set_value($element, $element['#value'], $form_state);
+  if ($element['#convert_to_array']) {
+    form_set_value($element, (array)$element['#value'], $form_state);
+  } else {
+    form_set_value($element, $element['#value'], $form_state);
+  }
 }
