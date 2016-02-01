@@ -1,0 +1,34 @@
+.filechunk-widget-table {
+  min-height: 2em;
+  display: table;
+  width: 100%;
+}
+.filechunk-widget-row {
+  display: table-row;
+}
+.filechunk-widget-drop {
+  border: 2px dashed #ccc;
+  border-radius: 4px;
+  padding: 1em 2em;
+  width: 100%;
+  display: table-cell;
+  vertical-align: middle;
+  position: relative;
+}
+.filechunk-widget-row input[type=file] {
+  width: 100%;
+  height: 100%;
+}
+.filechunk-widget ul {
+  list-style: none;
+  list-style-position: inside;
+  padding: 0;
+}
+.filechunk-widget li {
+  clear: both;
+  margin-top: 10px;
+  overflow: auto;
+}
+.filechunk-widget ul input {
+  float: left;
+}

@@ -21,6 +21,10 @@ function filechunk_element_info() {
       '#convert_to_array'   => false,
       '#append_remove'      => true,
       '#upload_location'    => null,
+      // Element will work with multiple input, but if you set this you
+      // MUST drop a file stdClass array as input, else it wouldn't
+      // work.
+      '#multiple'           => false,
       '#attached'           => ['library' => [['filechunk', 'widget']]],
     ],
   ];
@@ -62,15 +66,26 @@ function filechunk_element_check_file($fid, $hash) {
  */
 function filechunk_element_value(&$element, $input = false, $form_state = null) {
 
-  $file = null;
-  $denied = false;
-  $default = null;
+  $files    = [];
+  $defaults = [];
 
   if (isset($element['#default_value'])) {
-    if (is_numeric($element['#default_value'])) {
-      $default = file_load($element['#default_value']);
-    } else if (is_object($element['#default_value']) && property_exists($element['#default_value'], 'fid')) {
-      $default = $element['#default_value'];
+
+    // Internally, the widget will always be multiple.
+    if (!is_array($element['#default_value'])) {
+      return [];
+    }
+
+    foreach ($element['#default_value'] as $item) {
+      if (is_numeric($item)) {
+        $defaults[(int)$item] = file_load($item);
+      } else if (is_array($item) && !empty($item['fid'])) {
+        $defaults[(int)$item['fid']] = (object)$item;
+      } else if (is_object($item) && property_exists($item, 'fid')) {
+        $defaults[(int)$item->fid] = $item;
+      } else {
+        // Just drop this element.
+      }
     }
   }
 
@@ -80,41 +95,74 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
       return null; // And yes, do not keep this frakking file.
     }
 
-    if (!empty($input['fid'])) {
-      // @todo Fallback won't work because of this.
-      //   We need to check if $_FILES is not empty before.
-      if ($default && $default->fid == $input['fid']) {
-        return $default;
+    if ($input['downgrade']) {
+
+      $files = $defaults;
+
+      // Fallback on non-js mode.
+      foreach ($input['items'] as $data) {
+        if ($data['drop']) {
+          // $data['drop'] is a checkbox with fid as #return_value.
+          unset($defaults[$data['drop']]);
+        }
       }
-      // We might have no uploaded file actually, but we probably have a few
-      // values that comes from the JavaScript, attempt to find this.
-      if (empty($input['hash'])) {
-        return;
+      // Once we got rid of removed elements, reset the array keys to
+      // a normal array to keep consistency.
+      $files = array_values($defaults);
+
+      // @todo Make this work
+      //   Need own file upload manager (no Drupal)
+      $file = file_managed_file_save_upload($element);
+      $files[] = $file;
+
+    } else if (!empty($input['fid'])) {
+
+      $hasMap = @json_decode($input['fid'], true);
+      if (!$hasMap) {
+        form_error($element, t("Uploaded files are corrupted."));
+        return $defaults; // Invalid input.
       }
-      $file = filechunk_element_check_file($input['fid'], $input['hash']);
-      if (!$file) {
-        form_error($element, t("Uploaded file is corrupted."));
-        $denied = true;
+
+      // The JavaScript widget takes over the default browser behavior.
+      foreach ($hasMap as $fid => $hash) {
+
+        if (!$fid || 'null' === $fid) {
+          continue; // 'delete' JavaScript workaround.
+        }
+        if (isset($defaults[$fid])) {
+          $files[] = $defaults[$fid]; // Nothing to do, file is default.
+          continue;
+        }
+
+        $file = filechunk_element_check_file($fid, $hash);
+        if (!$file) {
+          form_error($element, t("Uploaded file is corrupted."));
+          continue; // No hash means corrupted upload, just ignore.
+        } else {
+          $files[] = $file;
+        }
       }
     } else {
-      // Fallback on normal file upload, if any.
-      $file = file_managed_file_save_upload($element);
+      return array_values($defaults);
     }
 
     // In all cases ensures the user is the rightful owner of the file and
     // can access it, if not, there is a security issue.
-    if ($file) {
+    if ($files) {
 
       $defaultLocation = $element['#upload_location'];
       if (!$defaultLocation) {
         $defaultLocation = "public://";
       }
-      if (0 !== strpos($file->uri, $defaultLocation)) {
-        $file = file_move($file, $defaultLocation);
-        $file->status = FILE_STATUS_PERMANENT;
-        if (!$file) {
-          form_error($element, t("Could not move the uploaded file."));
-          $denied = true;
+
+      foreach ($files as $index => $file) {
+        if (0 !== strpos($file->uri, $defaultLocation)) {
+          $file = file_move($file, $defaultLocation);
+          $file->status = FILE_STATUS_PERMANENT;
+          if (!$file) {
+            form_error($element, t("Could not move the uploaded file."));
+            unset($files[$index]);
+          }
         }
       }
     }
@@ -124,11 +172,11 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
   // has been submitted, which means we must look at the default value, all
   // other cases are inputs. If the fid was messed-up with and user has no
   // access to the given file, just drop it and use default once again.
-  if (!$input || $denied) {
-    return $default;
+  if (!$input) {
+    return array_values($defaults);
   }
 
-  return $file;
+  return $files;
 }
 
 /**
@@ -146,18 +194,31 @@ function theme_filechunk_file_input($variables) {
  * find it back.
  */
 function filechunk_element_process($element) {
+
   $element['#tree'] = true;
+
+  $values   = [];
+  $hashmap  = [];
+
+  // There is no need to change value, because we have a value callback we will
+  // always get something that has the right format at this point.
+  if (isset($element['#value'])) {
+    if (is_array($element['#value'])) {
+      $values = $element['#value'];
+    } else {
+      $values = [$element['#value']];
+    }
+  }
 
   // Validate the input, input should be a file object, if a single fid is
   // given it should have been processed by filechunk_element_value().
   // In a few cases, but not all, the form API gives back the structure
   // array of the element, which is bad.
-  if (isset($element['#value']) && is_object($element['#value']) && property_exists($element['#value'], 'fid')) {
-    $value = $element['#value'];
-  } else {
-    $value = $element['#value'] = null;
+  foreach ($values as $value) {
+    $hashmap[$value->fid] = null; // This is a default.
   }
 
+  $element['#value'] = $values;
   $element['#theme_wrappers'] = ['form_element'];
   $element['#attributes']['class'][] = 'filechunk-widget';
 
@@ -181,55 +242,55 @@ function filechunk_element_process($element) {
     '#title'          => t('Choose a file'),
     '#title_display'  => 'invisible',
     '#theme_wrappers' => ['filechunk_file_input'],
+    '#prefix'         => '<div class="filechunk-widget-table"><div class="filechunk-widget-row"><div class="filechunk-widget-drop"><span class="text-muted message">' . t("Drag and drop files or click here to add more files...") . '</span>',
+    '#suffix'         => '</div></div></div>',
   ];
+  if ($element['#multiple']) {
+    $element['upload']['#attributes']['multiple'] = 'multiple';
+  }
+
   $element['progress'] = [
     '#prefix'         => '<div class="file-progress" style="display: none;">',
     '#suffix'         => '</div>',
     '#theme'          => 'progress_bar'
-  ];
-  // Placeholder for file preview.
-  $element['filename'] = [
-    '#markup'         => '',
-    '#prefix'         => '<div class="filechunk-thumbnail" style="display: none;">',
-    '#suffix'         => '</div>',
-  ];
-  $element['submit'] = [
-    '#type'           => 'button',
-    '#value'          => t("Upload"),
-    '#attributes'     => ['class' => ['filechunk-upload'], 'disabled' => true, 'style' => "display: none;"],
-  ];
-  $element['remove'] = [
-    '#type'           => 'button',
-    '#value'          => t("Remove"),
-    '#attributes'     => ['class' => ['filechunk-remove'], 'disabled' => true, 'style' => "display: none;"],
   ];
 
   // Hidden element containing the JavaScript result, if any.
   $element['fid'] = [
     '#type'           => 'hidden',
     '#attributes'     => ['rel' => 'fid'],
-    '#default_value'  => $value ? $value->fid : null,
+    '#default_value'  => null,
   ];
-  $element['hash'] = [
+  $element['downgrade'] = [
     '#type'           => 'hidden',
-    '#attributes'     => ['rel' => 'hash'],
-    '#default_value'  => false,
+    '#attributes'     => ['rel' => 'downgrade'],
+    '#default_value'  => 1,
   ];
 
   // Set the default preview value if any.
-  if ($value) {
-    unset($element['filename']['#markup']);
-    $element['filename']['#theme'] = 'file_link';
-    $element['filename']['#file'] = $value;
+  $element['items'] = [
+    '#markup'         => '',
+    '#prefix'         => '<ul class="filechunk-thumbnail">',
+    '#suffix'         => '</ul>',
+  ];
 
-    // Add a 'remove' checkbox, ugly but working.
-    if ($element['#append_remove']) {
-      $element['drop'] = [
-        '#type'           => 'checkbox',
-        '#title'          => t("Remove file"),
-        '#default_value'  => false,
-        '#attributes'     => ['class' => ['filechunk-drop']],
-      ];
+  if ($values) {
+    unset($element['items']['#markup']);
+    // Do not alter this markup, it is also built in javascript.
+    foreach ($values as $index => $value) {
+      $element['items'][$index]['#prefix'] = '<li data-fid="' . $value->fid . '">';
+      $element['items'][$index]['#suffix'] = '</li>';
+      $element['items'][$index]['file'] = filechunk_element_file_display($value);
+      // Add a 'remove' checkbox, ugly but working.
+      if ($element['#append_remove']) {
+        $element['items'][$index]['drop'] = [
+          '#type'           => 'checkbox',
+          '#title'          => t("Remove file"),
+          '#default_value'  => false,
+          '#return_value'   => $value->fid,
+          '#attributes'     => ['class' => ['filechunk-drop']],
+        ];
+      }
     }
   }
 
@@ -239,13 +300,29 @@ function filechunk_element_process($element) {
     $element[$key]['#form_horizontal'] = false;
   }
 
+  $removeButton = [
+    '#type'       => 'button',
+    '#value'      => t("Remove"),
+    '#attributes' => ['class' => ['filechunk-remove']],
+  ];
+
   $settings = [
     // Keep a session driven token, there is no other way in order to
-    // avoid form caching.
-    'token' => drupal_get_token(),
+    // avoid default Drupal form caching.
+    'token'     => drupal_get_token(),
+    'defaults'  => $hashmap,
+    'multiple'  => (bool)$element['#multiple'],
     'chunksize' => variable_get('filechunk_chunk_size', 1024 * 1024 * 2),
-    'url' => ['upload' => url('system/chunk-upload'), 'remove' => url('system/chunk-remove')],
+    'template'  => [
+      'remove'  => theme('button', ['element' => $removeButton]),
+      'item'    => '<li data-fid="FID"></li>',
+    ],
+    'url'       => [
+      'upload'  => url('system/chunk-upload'),
+      'remove'  => url('system/chunk-remove'),
+    ],
   ];
+
   $element['#attached']['js'][] = [
     'type' => 'setting',
     'data' => ['filechunk' => [$id => $settings]],
@@ -258,9 +335,12 @@ function filechunk_element_process($element) {
  * Valiate filechunk element.
  */
 function filechunk_element_validate(&$element, &$form_state, $form) {
+  // There is no need to change value, because we have a value callback we will
+  // always get something that has the right format at this point.
   if ($element['#convert_to_array']) {
-    form_set_value($element, (array)$element['#value'], $form_state);
-  } else {
+    foreach ($element['#value'] as $index => $file) {
+      $element['#value'][$index] = (array)$file;
+    }
     form_set_value($element, $element['#value'], $form_state);
   }
 }
