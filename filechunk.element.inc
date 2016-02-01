@@ -146,24 +146,37 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
     // In all cases ensures the user is the rightful owner of the file and
     // can access it, if not, there is a security issue.
     if ($files) {
+      $reset = [];
 
       $defaultLocation = $element['#upload_location'];
       if (!$defaultLocation) {
         $defaultLocation = "public://";
       } else {
+        file_prepare_directory($defaultLocation, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS);
         $defaultLocation .= '/';
       }
 
+      // Make this clear that this widget should not set the permanent status
+      // by itself, ... We can't guarantee the form full validation and submit
+      // will pass and we should not leave anything stalling as permanent.
       foreach ($files as $index => $file) {
         if (0 !== strpos($file->uri, $defaultLocation)) {
-          $file->status = FILE_STATUS_PERMANENT;
           $file = file_move($file, $defaultLocation . $file->filename);
           if (!$file) {
             form_error($element, t("Could not move the uploaded file."));
             unset($files[$index]);
+          } else {
+            $files[$index] = $file;
           }
         }
+        $reset[] = $file->fid;
       }
+
+      // By some wonderful and powerfull magic, sometime file entity cache
+      // does not seems to be rightfully cleared and the image module inherits
+      // from very wrong cached entries, and cause a few PHP errors to raise
+      // up to the watchdog.
+      entity_get_controller('file')->resetCache($reset);
     }
   }
 
