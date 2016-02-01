@@ -126,9 +126,6 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
       // The JavaScript widget takes over the default browser behavior.
       foreach ($hasMap as $fid => $hash) {
 
-        if (!$fid || 'null' === $fid) {
-          continue; // 'delete' JavaScript workaround.
-        }
         if (isset($defaults[$fid])) {
           $files[] = $defaults[$fid]; // Nothing to do, file is default.
           continue;
@@ -215,7 +212,9 @@ function filechunk_element_process($element) {
   // In a few cases, but not all, the form API gives back the structure
   // array of the element, which is bad.
   foreach ($values as $value) {
-    $hashmap[$value->fid] = null; // This is a default.
+    // Needs to be casted as string else the encoded JSON will be an
+    // an array, and boom!
+    $hashmap[(string)$value->fid] = null; // This is a default.
   }
 
   $element['#value'] = $values;

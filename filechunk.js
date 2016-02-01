@@ -162,33 +162,6 @@
           upload = upload.get(0);
 
           /**
-           * For whatever that happens, this will run the file upload.
-           */
-          var _onAnythingDoUpload = function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-
-            files = upload.files;
-            if (!files.length) {
-              return false;
-            }
-
-            _show(bar);
-            _disable(formInputs);
-
-            // Now the hard part.
-            for (i = 0, file; file = files[i]; ++i) {
-              _upload(settings.url.upload, file, 0, settings.chunksize, settings.token, _updateProgress, function (response) {
-                if (response.finished) {
-                  _addItem(response.fid, response.hash, response.preview);
-                }
-              }, function () {
-                _refresh();
-              });
-            }
-          };
-
-          /**
            * Create a clone of the given element and replace the previous with it.
            *
            * @param DOMNode element
@@ -208,8 +181,8 @@
            * Update progress bar callback.
            */
           var _updateProgress = function (percent) {
-            var value = parseInt(percent, 10) + '%';
-            bar.find('.progress-bar').css('width', value).html(value);
+            var percentage = parseInt(percent, 10) + '%';
+            bar.find('.progress-bar').css('width', percentage).html(percentage);
           };
 
           /**
@@ -224,16 +197,16 @@
            * Refresh UI (enable, disable buttons and submits).
            */
           var _refresh = function () {
-            var hasValue = false;
+            var key, hasValue = false;
             // Attempt deactivation of submit widget when in not multiple mode
             // to ensure that only one value may be uploaded.
             if (!settings.multiple) {
-              $.each(value, function (index) {
-                // "null" exists when delete is being used... WTF JS.
-                if (index && "null" !== index) {
+              for (key in value) {
+                if (value.hasOwnProperty(key)) {
                   hasValue = true;
+                  break;
                 }
-              });
+              }
               if (hasValue) {
                 _disable(upload);
               } else {
@@ -278,6 +251,33 @@
             var item = $(this).closest('li'), fid = item.attr('data-fid');
             _remove(settings.url.remove, fid, settings.token);
             _removeItem(fid);
+          };
+
+          /**
+           * For whatever that happens, this will run the file upload.
+           */
+          var _onAnythingDoUpload = function (event) {
+            event.stopPropagation();
+            event.preventDefault();
+
+            files = upload.files;
+            if (!files.length) {
+              return false;
+            }
+
+            _show(bar);
+            _disable(formInputs);
+
+            // Now the hard part.
+            for (i = 0, file; file = files[i]; ++i) {
+              _upload(settings.url.upload, file, 0, settings.chunksize, settings.token, _updateProgress, function (response) {
+                if (response.finished) {
+                  _addItem(response.fid, response.hash, response.preview);
+                }
+              }, function () {
+                _refresh();
+              });
+            }
           };
 
           // Adds the missing remove buttons from the start.
