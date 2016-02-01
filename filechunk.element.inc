@@ -309,7 +309,7 @@ function filechunk_element_process($element) {
     // Keep a session driven token, there is no other way in order to
     // avoid default Drupal form caching.
     'token'     => drupal_get_token(),
-    'defaults'  => $hashmap,
+    'defaults'  => (object)$hashmap,
     'multiple'  => (bool)$element['#multiple'],
     'chunksize' => variable_get('filechunk_chunk_size', 1024 * 1024 * 2),
     'template'  => [
