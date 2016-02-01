@@ -229,8 +229,10 @@
               item = $('<li data-fid="' + fid + '"></li>');
             }
             $(items).append(item.append(preview).append(remove.on('click', _removeOnClick)));
-            value[fid] = hash;
-            _updateValue();
+            if (fid) {
+              value[fid] = hash;
+              _updateValue();
+            }
           };
 
           /**

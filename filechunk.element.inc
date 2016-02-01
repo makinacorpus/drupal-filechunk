@@ -150,12 +150,14 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
       $defaultLocation = $element['#upload_location'];
       if (!$defaultLocation) {
         $defaultLocation = "public://";
+      } else {
+        $defaultLocation .= '/';
       }
 
       foreach ($files as $index => $file) {
         if (0 !== strpos($file->uri, $defaultLocation)) {
-          $file = file_move($file, $defaultLocation);
           $file->status = FILE_STATUS_PERMANENT;
+          $file = file_move($file, $defaultLocation . $file->filename);
           if (!$file) {
             form_error($element, t("Could not move the uploaded file."));
             unset($files[$index]);
