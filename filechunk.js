@@ -150,7 +150,7 @@
             value       = settings.defaults,
             valueInput  = parent.find("[rel=fid]"),
             bar         = parent.find('.file-progress'),
-            files, file, i
+            uploadClone, files, file, i
           ;
 
           // Javascript is active, therefore we need to remove graceful
@@ -158,6 +158,7 @@
           parent.find('.filechunk-drop').remove();
           parent.find('[rel=downgrade]').val('');
           upload.css({opacity: 0, position: "absolute", top: 0, left: 0, bottom: 0, right: 0});
+          uploadClone = upload.clone(true);
           upload = upload.get(0);
 
           /**
@@ -196,7 +197,7 @@
            */
           function _recreateUploadInput(element) {
             var previous = $(element);
-            var replacement = previous.val('').clone(true);
+            var replacement = uploadClone.clone(true);
             previous.replaceWith(replacement);
             previous.remove();
             $(replacement).on("change", _onAnythingDoUpload);
