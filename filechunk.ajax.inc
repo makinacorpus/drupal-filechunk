@@ -9,7 +9,9 @@
  * @param string $message
  */
 function _filechunk_upload_die($message) {
-  die($message);
+  drupal_json_output(['message' => $message, 'error' => true]);
+  drupal_add_http_header('Status', '500 Technical Error');
+  die();
 }
 
 /**
