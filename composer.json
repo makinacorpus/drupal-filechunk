@@ -1,0 +1,19 @@
+{
+    "name" : "makinacorpus/drupal-filechunk",
+    "type" : "drupal-module",
+    "description" : "Javascript file upload widget for Drupal",
+    "homepage" : "http://github.com/makinacorpus/drupal-filechunk",
+    "license" : "GPL-2",
+    "authors" : [
+        {
+            "name" : "Pierre Rineau",
+            "email" : "pierre.rineau@makina-corpus.com"
+        },
+        {
+            "name" : "Makina Corpus",
+            "homepage" : "http://makina-corpus.com"
+        }
+    ],
+    "minimum-stability" : "dev",
+    "prefer-stable" : true
+}
