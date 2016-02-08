@@ -256,7 +256,7 @@ function filechunk_element_process($element) {
     '#title'          => t('Choose a file'),
     '#title_display'  => 'invisible',
     '#theme_wrappers' => ['filechunk_file_input'],
-    '#prefix'         => '<div class="filechunk-widget-table"><div class="filechunk-widget-row"><div class="filechunk-widget-drop"><span class="text-muted message">' . t("Drag and drop files or click here to add more files...") . '</span>',
+    '#prefix'         => '<div class="filechunk-widget-table"><div class="filechunk-widget-row"><div class="filechunk-widget-drop"><span style="display: none;" class="text-muted message">' . t("Drag and drop files or click here to add more files...") . '</span>',
     '#suffix'         => '</div></div></div>',
   ];
   if ($element['#multiple']) {
@@ -339,7 +339,7 @@ function filechunk_element_process($element) {
 
   $element['#attached']['js'][] = [
     'type' => 'setting',
-    'data' => ['filechunk' => [$id => $settings]],
+    'data' => ['filechunk' => ['list' => [$id => $settings]]],
   ];
 
   return $element;

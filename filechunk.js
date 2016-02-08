@@ -27,7 +27,9 @@
     if (token) {
       xhr.setRequestHeader("X-File-Token", token);
     }
-    xhr.overrideMimeType("application/octet-stream");
+    if (xhr.overrideMimeType) {
+      xhr.overrideMimeType("application/octet-stream");
+    }
 
     xhr.onerror = error;
     xhr.onload = function () {
@@ -103,7 +105,9 @@
    */
   function _show(element) {
     $(element).each(function () {
-      this.style.display = null;
+      if (this.style) {
+        this.style.display = null;
+      }
     });
   }
 
@@ -114,7 +118,9 @@
    */
   function _hide(element) {
     $(element).each(function () {
-      this.style.display = "none";
+      if (this.style) {
+        this.style.display = "none";
+      }
     });
   }
 
@@ -126,12 +132,18 @@
     attach: function (context) {
       var id, settings;
 
+      if (!window.FileReader) {
+        return; // Let it go.
+      }
       if (!Drupal.settings.filechunk) {
         return; // Failsafe.
       }
+      if (!Drupal.settings.filechunk.list) {
+        return; // No items to init.
+      }
 
-      for (id in Drupal.settings.filechunk) {
-        settings = Drupal.settings.filechunk[id];
+      for (id in Drupal.settings.filechunk.list) {
+        settings = Drupal.settings.filechunk.list[id];
 
         if (!settings) {
           return;
@@ -140,156 +152,146 @@
           settings.chunksize = 1024 * 1024;
         }
 
-        (function (id) {
+        $(context).find("#" + id).once('filechunk', function () {
+          $(this).each(function () {
 
-          var
-            upload      = $(context).find("#" + id),
-            formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove)'),
-            parent      = upload.closest('.filechunk-widget'),
-            items       = parent.find('.filechunk-thumbnail'),
-            value       = settings.defaults,
-            valueInput  = parent.find("[rel=fid]"),
-            bar         = parent.find('.file-progress'),
-            uploadClone, files, file, i
-          ;
+            var
+              upload      = $(this),
+              formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove)'),
+              parent      = upload.closest('.filechunk-widget'),
+              items       = parent.find('.filechunk-thumbnail'),
+              value       = settings.defaults,
+              valueInput  = parent.find("[rel=fid]"),
+              bar         = parent.find('.file-progress')
+            ;
 
-          // Javascript is active, therefore we need to remove graceful
-          // downgrade stuff before proceeding.
-          parent.find('.filechunk-drop').remove();
-          parent.find('[rel=downgrade]').val('');
-          upload.css({opacity: 0, position: "absolute", top: 0, left: 0, bottom: 0, right: 0});
-          uploadClone = upload.clone(true);
-          upload = upload.get(0);
+            // Javascript is active, therefore we need to remove graceful
+            // downgrade stuff before proceeding.
+            parent.find('.filechunk-drop').remove();
+            parent.find('[rel=downgrade]').val('');
+            _show(parent.find('.message'));
+            upload.css({opacity: 0, position: "absolute", top: 0, left: 0, width: "100%", height: "100%"});
 
-          /**
-           * Create a clone of the given element and replace the previous with it.
-           *
-           * @param DOMNode element
-           *
-           * @return DOMNode
-           */
-          function _recreateUploadInput(element) {
-            var previous = $(element);
-            var replacement = uploadClone.clone(true);
-            previous.replaceWith(replacement);
-            previous.remove();
-            $(replacement).on("change", _onAnythingDoUpload);
-            return replacement.get(0);
-          }
+            /**
+             * Update progress bar callback.
+             */
+            var _updateProgress = function (percent) {
+              var percentage = parseInt(percent, 10) + '%';
+              bar.find('.progress-bar').css('width', percentage).html(percentage);
+            };
 
-          /**
-           * Update progress bar callback.
-           */
-          var _updateProgress = function (percent) {
-            var percentage = parseInt(percent, 10) + '%';
-            bar.find('.progress-bar').css('width', percentage).html(percentage);
-          };
+            /**
+             * Restore value into the right form input.
+             */
+            var _updateValue = function () {
+              valueInput.val(JSON.stringify(value));
+              _refresh();
+            };
 
-          /**
-           * Restore value into the right form input.
-           */
-          var _updateValue = function () {
-            valueInput.val(JSON.stringify(value));
-            _refresh();
-          };
-
-          /**
-           * Refresh UI (enable, disable buttons and submits).
-           */
-          var _refresh = function () {
-            var key, hasValue = false;
-            // Attempt deactivation of submit widget when in not multiple mode
-            // to ensure that only one value may be uploaded.
-            if (!settings.multiple) {
-              for (key in value) {
-                if (value.hasOwnProperty(key)) {
-                  hasValue = true;
-                  break;
+            /**
+             * Refresh UI (enable, disable buttons and submits).
+             */
+            var _refresh = function () {
+              var key, hasValue = false;
+              // Attempt deactivation of submit widget when in not multiple mode
+              // to ensure that only one value may be uploaded.
+              if (!settings.multiple) {
+                for (key in value) {
+                  if (value.hasOwnProperty(key)) {
+                    hasValue = true;
+                    break;
+                  }
+                }
+                if (hasValue) {
+                  _disable(upload);
+                } else {
+                  _enable(upload);
                 }
               }
-              if (hasValue) {
-                _disable(upload);
-              } else {
-                _enable(upload);
-              }
-            }
-            upload = _recreateUploadInput(upload);
-            _hide(bar);
-            _enable(formInputs);
-          };
+              _hide(bar);
+              _enable(formInputs);
+            };
 
-          /**
-           * Add new item to item list.
-           */
-          var _addItem = function (fid, hash, preview, item) {
-            // When adding items in javascript, we don't care about the 'drop'
-            // checkbox, since it will be fully handled by the javascript code.
-            var remove = $(settings.template.remove);
-            if (!item) {
-              item = $('<li data-fid="' + fid + '"></li>');
-            }
-            $(items).append(item.append(preview).append(remove.on('click', _removeOnClick)));
-            if (fid) {
-              value[fid] = hash;
+            /**
+             * Add new item to item list.
+             */
+            var _addItem = function (fid, hash, preview, item) {
+              // When adding items in javascript, we don't care about the 'drop'
+              // checkbox, since it will be fully handled by the javascript code.
+              var remove = $(settings.template.remove);
+              if (!item) {
+                item = $('<li data-fid="' + fid + '"></li>');
+              }
+              $(items).append(item.append(preview).append(remove.on('click', _removeOnClick)));
+              if (fid) {
+                value[fid] = hash;
+                _updateValue();
+              }
+            };
+
+            /**
+             * Remove item from server callback.
+             */
+            var _removeOnClick = function (event) {
+              event.stopPropagation();
+              event.preventDefault();
+
+              var item = $(this).closest('li'), fid = item.attr('data-fid');
+              _remove(settings.url.remove, fid, settings.token);
+
+              // Remove item from FROM and settings.
+              $(items).find('[data-fid=' + fid + ']').remove();
+              delete value[fid];
               _updateValue();
-            }
-          };
+            };
 
-          /**
-           * Remove item from item list.
-           */
-          var _removeItem = function (fid) {
-            $(items).find('[data-fid=' + fid + ']').remove();
-            delete value[fid];
-            _updateValue();
-          };
+            /**
+             * For whatever that happens, this will run the file upload.
+             */
+            function onUploadChange (event) {
 
-          /**
-           * Remove item from server callback.
-           */
-          var _removeOnClick = function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            var item = $(this).closest('li'), fid = item.attr('data-fid');
-            _remove(settings.url.remove, fid, settings.token);
-            _removeItem(fid);
-          };
+              event = event || window.event; // Old browser support.
 
-          /**
-           * For whatever that happens, this will run the file upload.
-           */
-          var _onAnythingDoUpload = function (event) {
-            event.stopPropagation();
-            event.preventDefault();
+              var files = this.files, file, i = 0;
+              if (!files || !files.length) {
+                return; // Nothing to deal with...
+              }
 
-            files = upload.files;
-            if (!files.length) {
+              _show(bar);
+              _disable(formInputs);
+
+              // Now the hard part.
+              for (i, file; file = files[i]; ++i) {
+                _upload(settings.url.upload, file, 0, settings.chunksize, settings.token, _updateProgress, function (response) {
+                  if (response.finished) {
+                    _addItem(response.fid, response.hash, response.preview);
+                  }
+                }, function () {
+                  _refresh();
+                });
+              }
+
+              // Proceed with element replacement.
+              var clone = this.cloneNode(true);
+              this.parentNode.replaceChild(clone, this);
+              clone.onchange = onUploadChange;
+
               return false;
-            }
+            };
 
-            _show(bar);
-            _disable(formInputs);
+            upload.get(0).onchange = onUploadChange;
+            upload.get(0).ondrop = onUploadChange;
 
-            // Now the hard part.
-            for (i = 0, file; file = files[i]; ++i) {
-              _upload(settings.url.upload, file, 0, settings.chunksize, settings.token, _updateProgress, function (response) {
-                if (response.finished) {
-                  _addItem(response.fid, response.hash, response.preview);
-                }
-              }, function () {
-                _refresh();
-              });
-            }
-          };
+            // Adds the missing remove buttons from the start.
+            items.find('li').each(function () {
+              _addItem(null, null, null, $(this));
+            })
 
-          // Adds the missing remove buttons from the start.
-          items.find('li').each(function () {
-            _addItem(null, null, null, $(this));
-          })
-          _refresh();
+            _refresh();
 
-          $(upload).on("change", _onAnythingDoUpload);
-        }(id));
+            return false;
+          });
+        });
       }
     }
   };

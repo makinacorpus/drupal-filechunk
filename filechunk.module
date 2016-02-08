@@ -66,18 +66,11 @@ function filechunk_theme() {
  */
 function filechunk_library() {
   return [
-    'moxie' => [
-      'title' => "mOxie",
-      'version' => '1.4.1',
-      'website' => "https://github.com/moxiecode/moxie",
-      'js' => [drupal_get_path('module', 'filechunk') . '/moxie-1.4.1/bin/js/moxie.min.js' => []],
-    ],
     'widget' => [
       'title' => "Chunked file widget",
       'version' => '1.0',
       'js' => [drupal_get_path('module', 'filechunk') . '/filechunk.js' => []],
       'css' => [drupal_get_path('module', 'filechunk') . '/filechunk.css' => []],
-      'dependencies' => [['filechunk', 'moxie']],
     ],
   ];
 }
