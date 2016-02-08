@@ -100,10 +100,12 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
       $files = $defaults;
 
       // Fallback on non-js mode.
-      foreach ($input['items'] as $data) {
-        if ($data['drop']) {
-          // $data['drop'] is a checkbox with fid as #return_value.
-          unset($defaults[$data['drop']]);
+      if (!empty($input['items'])) {
+        foreach ($input['items'] as $data) {
+          if ($data['drop']) {
+            // $data['drop'] is a checkbox with fid as #return_value.
+            unset($defaults[$data['drop']]);
+          }
         }
       }
       // Once we got rid of removed elements, reset the array keys to
