@@ -119,10 +119,14 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
 
     } else if (!empty($input['fid'])) {
 
-      $hasMap = @json_decode($input['fid'], true);
-      if (!$hasMap) {
-        form_error($element, t("Uploaded files are corrupted."));
-        return $defaults; // Invalid input.
+      if ($input['fid'] === '{}') {
+        $hasMap = [];
+      } else {
+        $hasMap = @json_decode($input['fid'], true);
+        if (!$hasMap) {
+          form_error($element, t("Uploaded files are corrupted."));
+          return $defaults; // Invalid input.
+        }
       }
 
       // The JavaScript widget takes over the default browser behavior.
