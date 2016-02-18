@@ -73,7 +73,7 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
 
     // Internally, the widget will always be multiple.
     if (!is_array($element['#default_value'])) {
-      return [];
+      $element['#default_value'] = [$element['#default_value']];
     }
 
     foreach ($element['#default_value'] as $item) {
