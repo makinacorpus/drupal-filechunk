@@ -1,6 +1,7 @@
 .filechunk-widget-table {
   min-height: 2em;
   display: table;
+  position: relative;
   width: 100%;
 }
 .filechunk-widget-row {
