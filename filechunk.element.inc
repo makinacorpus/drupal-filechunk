@@ -19,6 +19,8 @@ function filechunk_element_info() {
       '#upload_validators'  => [],
       // Use the next for Field API compatibility only.
       '#convert_to_array'   => false,
+      // And the next one too (makes file field happy).
+      '#arbitrary_values'   => [],
       '#append_remove'      => true,
       '#upload_location'    => null,
       // Element will work with multiple input, but if you set this you
@@ -360,6 +362,9 @@ function filechunk_element_validate(&$element, &$form_state, $form) {
   if ($element['#convert_to_array']) {
     foreach ($element['#value'] as $index => $file) {
       $element['#value'][$index] = (array)$file;
+      if ($element['#arbitrary_values']) {
+        $element['#value'][$index] += $element['#arbitrary_values'];
+      }
     }
     form_set_value($element, $element['#value'], $form_state);
   }
