@@ -116,8 +116,9 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
 
       // @todo Make this work
       //   Need own file upload manager (no Drupal)
-      $file = file_managed_file_save_upload($element);
-      $files[] = $file;
+      if ($file = file_managed_file_save_upload($element)) {
+        $files[] = $file;
+      }
 
     } else if (!empty($input['fid'])) {
 
