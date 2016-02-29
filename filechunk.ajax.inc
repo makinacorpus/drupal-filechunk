@@ -86,8 +86,10 @@ function filechunk_remove_callback() {
  */
 function filechunk_upload_callback() {
 
+  global $user;
+
   $filename   = $_SERVER['HTTP_X_FILE_NAME'];
-  $directory  = filechunk_upload_dir_get();
+  $directory  = filechunk_upload_dir_get() . '/' . $user->uid;
   $absolute   = $directory . $filename;
 
   list($start, $stop, $filesize) = filechunk_parse_range($_SERVER['HTTP_CONTENT_RANGE']);
@@ -106,10 +108,20 @@ function filechunk_upload_callback() {
   if (!file_exists($metadataFilename)) {
     $metadata = (object)['offset' => 0, 'size' => $filesize];
 
+    // Allow users to resume a crashed upload they started themselves.
+    $uploadIsFinished = $metadata->offset === $metadata->size;
+
     // Create the file with allocated size.
-    if (file_exists($absolute)) {
+    if ($uploadIsFinished && file_exists($absolute)) {
       return _filechunk_upload_die("Cannot overwrite another file");
     }
+
+    if ($metadata->size !== $filesize) {
+      // If filesize does not match, this probably means that another file is
+      // being sent or the JavaScript is corrupted.
+      return _filechunk_upload_die("File size does not match");
+    }
+
     // This solution comes from https://stackoverflow.com/a/3608405/5826569
     // Best answer ever to this!
     if (!$out = fopen($absolute, 'cb')) { // Allows overwrite.
