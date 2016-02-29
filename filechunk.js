@@ -129,13 +129,13 @@
    */
   Drupal.behaviors.filechunk = {
 
-    attach: function (context) {
+    attach: function (context, settings) {
       var id, settings;
 
       if (!window.FileReader) {
         return; // Let it go.
       }
-      if (!Drupal.settings.filechunk) {
+      if (!settings.filechunk) {
         return; // Failsafe.
       }
       if (!Drupal.settings.filechunk.list) {
@@ -143,13 +143,13 @@
       }
 
       for (id in Drupal.settings.filechunk.list) {
-        settings = Drupal.settings.filechunk.list[id];
+        var config = Drupal.settings.filechunk.list[id];
 
-        if (!settings) {
+        if (!config) {
           return;
         }
-        if (!settings.chunksize) {
-          settings.chunksize = 1024 * 1024;
+        if (!config.chunksize) {
+          config.chunksize = 1024 * 1024;
         }
 
         $(context).find("#" + id).once('filechunk', function () {
@@ -157,10 +157,10 @@
 
             var
               upload      = $(this),
-              formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove)'),
+              formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove):not([type=file])'),
               parent      = upload.closest('.filechunk-widget'),
               items       = parent.find('.filechunk-thumbnail'),
-              value       = settings.defaults,
+              value       = config.defaults,
               valueInput  = parent.find("[rel=fid]"),
               bar         = parent.find('.file-progress')
             ;
@@ -195,7 +195,7 @@
               var key, hasValue = false;
               // Attempt deactivation of submit widget when in not multiple mode
               // to ensure that only one value may be uploaded.
-              if (!settings.multiple) {
+              if (!config.multiple) {
                 for (key in value) {
                   if (value.hasOwnProperty(key)) {
                     hasValue = true;
@@ -218,7 +218,7 @@
             var _addItem = function (fid, hash, preview, item) {
               // When adding items in javascript, we don't care about the 'drop'
               // checkbox, since it will be fully handled by the javascript code.
-              var remove = $(settings.template.remove);
+              var remove = $(config.template.remove);
               if (!item) {
                 item = $('<li data-fid="' + fid + '"></li>');
               }
@@ -237,7 +237,7 @@
               event.preventDefault();
 
               var item = $(this).closest('li'), fid = item.attr('data-fid');
-              _remove(settings.url.remove, fid, settings.token);
+              _remove(config.url.remove, fid, config.token);
 
               // Remove item from FROM and settings.
               $(items).find('[data-fid=' + fid + ']').remove();
@@ -262,7 +262,7 @@
 
               // Now the hard part.
               for (i, file; file = files[i]; ++i) {
-                _upload(settings.url.upload, file, 0, settings.chunksize, settings.token, _updateProgress, function (response) {
+                _upload(config.url.upload, file, 0, config.chunksize, config.token, _updateProgress, function (response) {
                   if (response.finished) {
                     _addItem(response.fid, response.hash, response.preview);
                   }
