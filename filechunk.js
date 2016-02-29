@@ -202,11 +202,11 @@
                     break;
                   }
                 }
-                if (hasValue) {
-                  _disable(upload);
-                } else {
-                  _enable(upload);
-                }
+              }
+              if (hasValue) {
+                _disable(upload);
+              } else {
+                _enable(upload);
               }
               _hide(bar);
               _enable(formInputs);
