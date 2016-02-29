@@ -247,9 +247,9 @@ function filechunk_element_process($element) {
 
   // Compute a predictable unique identifier for the field (there might be
   // more than one on the same screen).
-  if (!empty($element['#field_parents'])) {
+  if (!empty($element['#field_parents']) && !empty($element['#field_name'])) {
     // This is a field widget.
-    $id = drupal_clean_css_identifier(implode('-', $element['#field_parents']));
+    $id = drupal_clean_css_identifier(implode('-', array_merge($element['#field_parents'], [$element['#field_name']])));
   } else if (false) {
     // This is a nested form element.
   } else {
