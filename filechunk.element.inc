@@ -346,6 +346,12 @@ function filechunk_element_process($element) {
     ],
   ];
 
+  // Add the extension list to the page as JavaScript settings.
+  if (isset($element['#upload_validators']['file_validate_extensions'][0])) {
+    $extension_list = implode(',', array_filter(explode(' ', $element['#upload_validators']['file_validate_extensions'][0])));
+    $settings['extensions'] = $extension_list;
+  }
+
   $element['#attached']['js'][] = [
     'type' => 'setting',
     'data' => ['filechunk' => ['list' => [$id => $settings]]],

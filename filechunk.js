@@ -125,6 +125,38 @@
   }
 
   /**
+   * Adapted from Drupal core file.js.
+   *
+   * @param event
+   */
+  function _validateExtension(event) {
+    // Remove any previous errors.
+    $('.file-upload-js-error').remove();
+
+    // Add client side validation for the input[type=file].
+    var extensionPattern = event.data.extensions.replace(/,\s*/g, '|');
+    if (extensionPattern.length > 1 && this.value.length > 0) {
+      var acceptableMatch = new RegExp('\\.(' + extensionPattern + ')$', 'gi');
+      if (!acceptableMatch.test(this.value)) {
+        var error = Drupal.t("The selected file %filename cannot be uploaded. Only files with the following extensions are allowed: %extensions.", {
+          // According to the specifications of HTML5, a file upload control
+          // should not reveal the real local path to the file that a user
+          // has selected. Some web browsers implement this restriction by
+          // replacing the local path with "C:\fakepath\", which can cause
+          // confusion by leaving the user thinking perhaps Drupal could not
+          // find the file because it messed up the file path. To avoid this
+          // confusion, therefore, we strip out the bogus fakepath string.
+          '%filename': this.value.replace('C:\\fakepath\\', ''),
+          '%extensions': extensionPattern.replace(/\|/g, ', ')
+        });
+        $('div.filechunk-widget-drop').prepend('<div class="messages error file-upload-js-error" aria-live="polite">' + error + '</div>');
+        this.value = '';
+        return false;
+      }
+    }
+  }
+
+  /**
    * Drupal behavior.
    */
   Drupal.behaviors.filechunk = {
@@ -153,8 +185,8 @@
         }
 
         $(context).find("#" + id).once('filechunk', function () {
+          $(this).bind('change', {extensions: config.extensions}, _validateExtension);
           $(this).each(function () {
-
             var
               upload      = $(this),
               formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove):not([type=file])'),
@@ -249,7 +281,6 @@
              * For whatever that happens, this will run the file upload.
              */
             function onUploadChange (event) {
-
               event = event || window.event; // Old browser support.
 
               var files = this.files, file, i = 0;
@@ -275,7 +306,7 @@
               var clone = this.cloneNode(true);
               this.parentNode.replaceChild(clone, this);
               clone.onchange = onUploadChange;
-
+              $(this).bind('change', {extensions: config.extensions}, _validateExtension);
               return false;
             };
 
