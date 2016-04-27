@@ -20,8 +20,9 @@ function _filechunk_upload_die($message) {
  * @param string $filename
  *
  * @return stdClass
+ *   File is not saved
  */
-function _filechunk_managed_file_get($filename) {
+function _filechunk_managed_file_get($filename, $filesize = null) {
   global $user;
 
   $uri = file_stream_wrapper_uri_normalize($filename);
@@ -42,10 +43,9 @@ function _filechunk_managed_file_get($filename) {
   $file->filename = drupal_basename($uri);
   $file->uri = $uri;
   $file->filemime = file_get_mimetype($uri);
-  $file->filesize = @filesize($uri);
+  $file->filesize = $filesize ? $filesize : @filesize($uri);
   $file->timestamp = time();
   $file->status = 0;
-  file_save($file);
 
   return $file;
 }
@@ -79,6 +79,17 @@ function filechunk_remove_callback() {
 }
 
 /**
+ * Ensure contraints from current HTTP input
+ */
+function filechunk_upload_ensure_constraints($file, $token) {
+  $item = cache_get('fc:' . $token, variable_get('filechunk_validators_cache_bin', 'cache'));
+  if (!$item) {
+    return [t("Input field has expired, please reload the form")];
+  }
+  return file_validate($file, $item->data);
+}
+
+/**
  * Menu callback.
  *
  * I have to admit that the http://www.drupal.org/project/plupload module did
@@ -97,9 +108,21 @@ function filechunk_upload_callback() {
   $stop       = (int)$stop;
   $filesize   = (int)$filesize;
   $maxlength  = $stop - $start;
+  $token      = isset($_SERVER['HTTP_X_FILE_TOKEN']) ? $_SERVER['HTTP_X_FILE_TOKEN'] : null;
+  $file       = _filechunk_managed_file_get($absolute, $filesize);
+
+  // Proceed with #upload_validators, because we don't want to cache forms since
+  // this module was originally designed to avoid that, we will use a temporary
+  // cache entry to store the validators.
+  if ($token) {
+    $errors = filechunk_upload_ensure_constraints($file, $token);
+    if ($errors) {
+      return _filechunk_upload_die(implode("\n", $errors));
+    }
+  }
 
   if (!file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
-    return _filechunk_upload_die("Cannot create temporary directory");
+    return _filechunk_upload_die(t("Cannot create temporary directory"));
   }
 
   // Check for file metadata.
@@ -113,19 +136,19 @@ function filechunk_upload_callback() {
 
     // Create the file with allocated size.
     if ($uploadIsFinished && file_exists($absolute)) {
-      return _filechunk_upload_die("Cannot overwrite another file");
+      return _filechunk_upload_die(t("Cannot overwrite another file"));
     }
 
     if ($metadata->size !== $filesize) {
       // If filesize does not match, this probably means that another file is
       // being sent or the JavaScript is corrupted.
-      return _filechunk_upload_die("File size does not match");
+      return _filechunk_upload_die(t("File size does not match"));
     }
 
     // This solution comes from https://stackoverflow.com/a/3608405/5826569
     // Best answer ever to this!
     if (!$out = fopen($absolute, 'cb')) { // Allows overwrite.
-      return _filechunk_upload_die("Cannot create file");
+      return _filechunk_upload_die(t("Cannot create file"));
     }
     fseek($out, $filesize - 1);
     fwrite($out, 'a');
@@ -136,30 +159,37 @@ function filechunk_upload_callback() {
     if (!$metadata) {
       // Delete the metadata file since it's invalid.
       unlink($metadataFilename);
-      return _filechunk_upload_die("Unable to load metadata");
+      return _filechunk_upload_die(t("Unable to load metadata"));
     }
 
     if (!file_exists($absolute)) {
       // Delete the metadata file since it's probably something that stalled.
       unlink($metadataFilename);
-      return _filechunk_upload_die("File should exists");
+      return _filechunk_upload_die(t("File should exists"));
     }
 
     if ($metadata->size !== $filesize) {
       // If filesize does not match, this probably means that another file is
       // being sent or the JavaScript is corrupted.
-      return _filechunk_upload_die("File size does not match");
+      return _filechunk_upload_die(t("File size does not match"));
     }
 
     if (!$out = fopen($absolute, 'cb')) {
-      return _filechunk_upload_die("Could not open output stream");
+      return _filechunk_upload_die(t("Could not open output stream"));
     }
   }
 
   if ($metadata->offset !== $start) {
     fclose($out);
     if ($filesize <= $metadata->offset) {
-      $file = _filechunk_managed_file_get($absolute);
+
+      // Update file metatada, since the file was potentially previously
+      // incomplete, we must ensure that the saved data about our file is
+      // correct
+      $file->filemime = file_get_mimetype($file->uri);
+      $file->filesize = @filesize($file->uri);
+      file_save($file);
+
       @unlink($metadataFilename);
       $preview = filechunk_element_file_display($file);
       return drupal_json_output([
@@ -184,12 +214,12 @@ function filechunk_upload_callback() {
   $in = fopen("php://input", "rb");
   if (!$in) {
     fclose($out);
-    return _filechunk_upload_die("Could not open input stream");
+    return _filechunk_upload_die(t("Could not open input stream"));
   }
 
   // Write chunk into file.
   if (-1 === fseek($out, $start)) {
-    return _filechunk_upload_die("Could not seek output stream");
+    return _filechunk_upload_die(t("Could not seek output stream"));
   }
   $writen = stream_copy_to_stream($in, $out, $maxlength);
   fclose($out);
@@ -199,7 +229,14 @@ function filechunk_upload_callback() {
   file_put_contents($metadataFilename, json_encode($metadata));
 
   if ($filesize <= $stop) {
-    $file = _filechunk_managed_file_get($absolute);
+
+    // Update file metatada, since the file was potentially previously
+    // incomplete, we must ensure that the saved data about our file is
+    // correct
+    $file->filemime = file_get_mimetype($file->uri);
+    $file->filesize = @filesize($file->uri);
+    file_save($file);
+
     @unlink($metadataFilename);
     $preview = filechunk_element_file_display($file);
     return drupal_json_output([

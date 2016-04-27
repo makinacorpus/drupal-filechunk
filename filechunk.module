@@ -31,12 +31,6 @@ function filechunk_menu() {
     'type'              => MENU_CALLBACK,
     'file'              => 'filechunk.ajax.inc',
   ];
-  $items['system/chunk-upload/test'] = [
-    'page callback'     => 'drupal_get_form',
-    'page arguments'    => ['filechunk_test_form'],
-    'access arguments'  => ['this permission will not exist'],
-    'type'              => MENU_CALLBACK,
-  ];
   return $items;
 }
 
@@ -156,49 +150,4 @@ function filechunk_upload_access() {
     return false;
   }
   return true;
-}
-
-/**
- * Simple test form.
- */
-function filechunk_test_form($form, &$form_state, $fid = null) {
-
-  $form['#tree'] = true;
-  $form['#form_horizontal'] = true;
-
-  $form['mandatory'] = [
-    '#type'     => 'textfield',
-    '#title'    => t("Some mandatory text"),
-    '#required' => true,
-  ];
-
-  $form['foo']['bar']['my_file'] = [
-    '#title'  => t("Please upload your file"),
-    '#type'   => 'file_chunked',
-  ];
-
-  if (isset($fid) && ($file = file_load($fid))) {
-    $form['foo']['bar']['my_file']['#default_value'] = $file;
-  }
-
-  $form['actions']['#type'] = 'actions';
-  $form['actions']['submit'] = [
-    '#type'   => 'submit',
-    '#value'  => t("Hop hop!"),
-  ];
-
-  return $form;
-}
-
-/**
- * Simple test form submit.
- */
-function filechunk_test_form_submit($form, &$form_state) {
-  $file = $form_state['values']['foo']['bar']['my_file'];
-  if ($file) {
-    drupal_set_message(t("File has been saved."));
-    $form_state['redirect'] = 'system/chunk-upload/test/' . $file->fid;
-    $file->status = 1;
-    file_save($file);
-  }
 }

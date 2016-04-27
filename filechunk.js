@@ -30,8 +30,16 @@
     if (xhr.overrideMimeType) {
       xhr.overrideMimeType("application/octet-stream");
     }
-
-    xhr.onerror = error;
+    xhr.onerror = function () {
+      var response;
+      try {
+        response = JSON.parse(this.responseText);
+        error(response);
+      } catch (e) {
+        response = {};
+        error(response);
+      }
+    };
     xhr.onload = function () {
       var response;
       try {
@@ -39,8 +47,15 @@
       } catch (e) {
         // @todo Error handling
         response = {};
-        error();
+        error(response);
       }
+      // I do have no idea why this appens, but it does, a few errors in
+      // firefox are considered as valid...
+      if (200 !== this.status) {
+        error(response);
+        return;
+      }
+      // Else normal file processing
       if (file.size <= stop || response.finished) {
         complete(response);
         progress(100);
@@ -125,44 +140,12 @@
   }
 
   /**
-   * Adapted from Drupal core file.js.
-   *
-   * @param event
-   */
-  function _validateExtension(event) {
-    // Remove any previous errors.
-    $('.file-upload-js-error').remove();
-
-    // Add client side validation for the input[type=file].
-    var extensionPattern = event.data.extensions.replace(/,\s*/g, '|');
-    if (extensionPattern.length > 1 && this.value.length > 0) {
-      var acceptableMatch = new RegExp('\\.(' + extensionPattern + ')$', 'gi');
-      if (!acceptableMatch.test(this.value)) {
-        var error = Drupal.t("The selected file %filename cannot be uploaded. Only files with the following extensions are allowed: %extensions.", {
-          // According to the specifications of HTML5, a file upload control
-          // should not reveal the real local path to the file that a user
-          // has selected. Some web browsers implement this restriction by
-          // replacing the local path with "C:\fakepath\", which can cause
-          // confusion by leaving the user thinking perhaps Drupal could not
-          // find the file because it messed up the file path. To avoid this
-          // confusion, therefore, we strip out the bogus fakepath string.
-          '%filename': this.value.replace('C:\\fakepath\\', ''),
-          '%extensions': extensionPattern.replace(/\|/g, ', ')
-        });
-        $('div.filechunk-widget-drop').prepend('<div class="messages error file-upload-js-error" aria-live="polite">' + error + '</div>');
-        this.value = '';
-        return false;
-      }
-    }
-  }
-
-  /**
    * Drupal behavior.
    */
   Drupal.behaviors.filechunk = {
 
     attach: function (context, settings) {
-      var id, settings;
+      var id;
 
       if (!window.FileReader) {
         return; // Let it go.
@@ -185,7 +168,6 @@
         }
 
         $(context).find("#" + id).once('filechunk', function () {
-          $(this).bind('change', {extensions: config.extensions}, _validateExtension);
           $(this).each(function () {
             var
               upload      = $(this),
@@ -196,6 +178,11 @@
               valueInput  = parent.find("[rel=fid]"),
               bar         = parent.find('.file-progress')
             ;
+
+            // Create the error display div
+            var errorZone = $('<div class="messages error file-upload-js-error" aria-live="polite"></div>');
+            _hide(errorZone);
+            parent.find('.filechunk-widget-drop').prepend(errorZone);
 
             // Javascript is active, therefore we need to remove graceful
             // downgrade stuff before proceeding.
@@ -278,6 +265,22 @@
             };
 
             /**
+             * Show error message
+             */
+            var _showError = function (message) {
+              errorZone.html(message);
+              _show(errorZone);
+            };
+
+            /**
+             * Hide error messages
+             */
+            var _hideError = function () {
+              errorZone.html('');
+              _hide(errorZone);
+            };
+
+            /**
              * For whatever that happens, this will run the file upload.
              */
             function onUploadChange (event) {
@@ -297,8 +300,10 @@
                   if (response.finished) {
                     _addItem(response.fid, response.hash, response.preview);
                   }
-                }, function () {
-                  _refresh();
+                }, function (response) {
+                  if (response && response.message) {
+                    _showError(response.message);
+                  }
                 });
               }
 
@@ -306,9 +311,9 @@
               var clone = this.cloneNode(true);
               this.parentNode.replaceChild(clone, this);
               clone.onchange = onUploadChange;
-              $(this).bind('change', {extensions: config.extensions}, _validateExtension);
+              _hideError();
               return false;
-            };
+            }
 
             upload.get(0).onchange = onUploadChange;
             upload.get(0).ondrop = onUploadChange;
@@ -316,7 +321,7 @@
             // Adds the missing remove buttons from the start.
             items.find('li').each(function () {
               _addItem(null, null, null, $(this));
-            })
+            });
 
             _refresh();
 

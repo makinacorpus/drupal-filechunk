@@ -332,7 +332,7 @@ function filechunk_element_process($element) {
   $settings = [
     // Keep a session driven token, there is no other way in order to
     // avoid default Drupal form caching.
-    'token'     => drupal_get_token(),
+    'token'     => $token = drupal_get_token(),
     'defaults'  => (object)$hashmap,
     'multiple'  => (bool)$element['#multiple'],
     'chunksize' => variable_get('filechunk_chunk_size', 1024 * 1024 * 2),
@@ -350,6 +350,11 @@ function filechunk_element_process($element) {
   if (isset($element['#upload_validators']['file_validate_extensions'][0])) {
     $extension_list = implode(',', array_filter(explode(' ', $element['#upload_validators']['file_validate_extensions'][0])));
     $settings['extensions'] = $extension_list;
+  }
+
+  if (!empty($element['#upload_validators'])) {
+    // Set it to 6 hours, more than necessary.
+    cache_set('fc:' . $token, $element['#upload_validators'], variable_get('filechunk_validators_cache_bin', 'cache'), time() + 3600 * 6);
   }
 
   $element['#attached']['js'][] = [
