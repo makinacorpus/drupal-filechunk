@@ -297,6 +297,24 @@ function filechunk_element_process($element) {
     '#suffix'         => '</ul>',
   ];
 
+  $removeButton = [
+    '#type'       => 'button',
+    '#value'      => t("Remove"),
+    '#attributes' => ['class' => ['filechunk-remove']],
+  ];
+
+  // Keep a session driven token, there is no other way in order to
+  // avoid default Drupal form caching.
+  $element['upload']['#attributes'] += array_filter([
+    'data-token'      => $token = drupal_get_token(),
+    'data-default'    => json_encode((object)$hashmap),
+    'data-chunksize'  => variable_get('filechunk_chunk_size', null),
+    'data-uri-upload' => url('system/chunk-upload'),
+    'data-uri-remove' => url('system/chunk-remove'),
+    'data-tpl-remove' => theme('button', ['element' => $removeButton]),
+    'data-tpl-item'   => '<li data-fid="FID"></li>',
+  ]);
+
   if ($values) {
     unset($element['items']['#markup']);
     // Do not alter this markup, it is also built in javascript.
@@ -323,44 +341,10 @@ function filechunk_element_process($element) {
     $element[$key]['#form_horizontal'] = false;
   }
 
-  $removeButton = [
-    '#type'       => 'button',
-    '#value'      => t("Remove"),
-    '#attributes' => ['class' => ['filechunk-remove']],
-  ];
-
-  $settings = [
-    // Keep a session driven token, there is no other way in order to
-    // avoid default Drupal form caching.
-    'token'     => $token = drupal_get_token(),
-    'defaults'  => (object)$hashmap,
-    'multiple'  => (bool)$element['#multiple'],
-    'chunksize' => variable_get('filechunk_chunk_size', 1024 * 1024 * 2),
-    'template'  => [
-      'remove'  => theme('button', ['element' => $removeButton]),
-      'item'    => '<li data-fid="FID"></li>',
-    ],
-    'url'       => [
-      'upload'  => url('system/chunk-upload'),
-      'remove'  => url('system/chunk-remove'),
-    ],
-  ];
-
-  // Add the extension list to the page as JavaScript settings.
-  if (isset($element['#upload_validators']['file_validate_extensions'][0])) {
-    $extension_list = implode(',', array_filter(explode(' ', $element['#upload_validators']['file_validate_extensions'][0])));
-    $settings['extensions'] = $extension_list;
-  }
-
   if (!empty($element['#upload_validators'])) {
     // Set it to 6 hours, more than necessary.
     cache_set('fc:' . $token, $element['#upload_validators'], variable_get('filechunk_validators_cache_bin', 'cache'), time() + 3600 * 6);
   }
-
-  $element['#attached']['js'][] = [
-    'type' => 'setting',
-    'data' => ['filechunk' => ['list' => [$id => $settings]]],
-  ];
 
   return $element;
 }

@@ -88,14 +88,6 @@
   }
 
   /**
-   * Simple warning message when the window closes.
-   *
-  function _warn() {
-    return Drupal.t("There is a file upload in progress, are you sure you want to close this window ?");
-  }
-   */
-
-  /**
    * Disable element.
    *
    * @param DOMNode|selector element
@@ -145,190 +137,194 @@
   Drupal.behaviors.filechunk = {
 
     attach: function (context, settings) {
-      var id;
 
       if (!window.FileReader) {
         return; // Let it go.
       }
-      if (!settings.filechunk) {
-        return; // Failsafe.
-      }
-      if (!Drupal.settings.filechunk.list) {
-        return; // No items to init.
-      }
 
-      for (id in Drupal.settings.filechunk.list) {
-        var config = Drupal.settings.filechunk.list[id];
+      $(context).find(".filechunk-widget").once('filechunk', function () {
+        $(this).each(function () {
 
-        if (!config) {
-          return;
-        }
-        if (!config.chunksize) {
-          config.chunksize = 1024 * 1024;
-        }
+          var
+            parent      = $(this),
+            upload      = parent.find('input[type=file]'),
+            element     = upload.get(0),
+            formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove):not([type=file])'),
+            items       = parent.find('.filechunk-thumbnail'),
+            valueInput  = parent.find("[rel=fid]"),
+            bar         = parent.find('.file-progress')
+          ;
 
-        $(context).find("#" + id).once('filechunk', function () {
-          $(this).each(function () {
-            var
-              upload      = $(this),
-              formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove):not([type=file])'),
-              parent      = upload.closest('.filechunk-widget'),
-              items       = parent.find('.filechunk-thumbnail'),
-              value       = config.defaults,
-              valueInput  = parent.find("[rel=fid]"),
-              bar         = parent.find('.file-progress')
-            ;
+          // Configuration parse
+          var
+            token                 = element.getAttribute('data-token'),
+            value                 = JSON.parse(element.getAttribute('data-default') || '{}'),
+            isMultiple            = !!element.getAttribute('multiple'),
+            chunksize             = element.getAttribute('data-chunksize') || (1024 * 1024 * 2),
+            uploadUrl             = element.getAttribute('data-uri-upload'),
+            removeUrl             = element.getAttribute('data-uri-remove'),
+            removeButtonTemplate  = element.getAttribute('data-tpl-remove') || '<button class="filechunk-remove btn btn-primary" type="submit" value="Remove">Remove</button>',
+            itemPreviewTemplate   = element.getAttribute('data-tpl-item') || '<li data-fid="FID"></li>'
+          ;
+          if (!token) {
+            throw "data-token is mandatory";
+          }
+          if (!uploadUrl) {
+            throw "data-uri-upload is mandatory";
+          }
+          if (!removeUrl) {
+            throw "data-uri-remove is mandatory";
+          }
 
-            // Create the error display div
-            var errorZone = $('<div class="messages error file-upload-js-error" aria-live="polite"></div>');
-            _hide(errorZone);
-            parent.find('.filechunk-widget-drop').prepend(errorZone);
+          // Create the error display div
+          var errorZone = $('<div class="messages error file-upload-js-error" aria-live="polite"></div>');
+          _hide(errorZone);
+          parent.find('.filechunk-widget-drop').prepend(errorZone);
 
-            // Javascript is active, therefore we need to remove graceful
-            // downgrade stuff before proceeding.
-            parent.find('.filechunk-drop').remove();
-            parent.find('[rel=downgrade]').val('');
-            _show(parent.find('.message'));
-            upload.css({opacity: 0, position: "absolute", top: 0, left: 0, width: "100%", height: "100%"});
+          // Javascript is active, therefore we need to remove graceful
+          // downgrade stuff before proceeding.
+          parent.find('.filechunk-drop').remove();
+          parent.find('[rel=downgrade]').val('');
+          _show(parent.find('.message'));
+          upload.css({opacity: 0, position: "absolute", top: 0, left: 0, width: "100%", height: "100%"});
 
-            /**
-             * Update progress bar callback.
-             */
-            var _updateProgress = function (percent) {
-              var percentage = parseInt(percent, 10) + '%';
-              bar.find('.progress-bar').css('width', percentage).html(percentage);
-            };
+          /**
+           * Update progress bar callback.
+           */
+          var _updateProgress = function (percent) {
+            var percentage = parseInt(percent, 10) + '%';
+            bar.find('.progress-bar').css('width', percentage).html(percentage);
+          };
 
-            /**
-             * Restore value into the right form input.
-             */
-            var _updateValue = function () {
-              valueInput.val(JSON.stringify(value));
-              _refresh();
-            };
+          /**
+           * Restore value into the right form input.
+           */
+          var _updateValue = function () {
+            valueInput.val(JSON.stringify(value));
+            _refresh();
+          };
 
-            /**
-             * Refresh UI (enable, disable buttons and submits).
-             */
-            var _refresh = function () {
-              var key, hasValue = false;
-              // Attempt deactivation of submit widget when in not multiple mode
-              // to ensure that only one value may be uploaded.
-              if (!config.multiple) {
-                for (key in value) {
-                  if (value.hasOwnProperty(key)) {
-                    hasValue = true;
-                    break;
-                  }
+          /**
+           * Refresh UI (enable, disable buttons and submits).
+           */
+          var _refresh = function () {
+            var key, hasValue = false;
+            // Attempt deactivation of submit widget when in not multiple mode
+            // to ensure that only one value may be uploaded.
+            if (!isMultiple) {
+              for (key in value) {
+                if (value.hasOwnProperty(key)) {
+                  hasValue = true;
+                  break;
                 }
               }
-              if (hasValue) {
-                _disable(upload);
-              } else {
-                _enable(upload);
-              }
-              _hide(bar);
-              _enable(formInputs);
-            };
+            }
+            if (hasValue) {
+              _disable(upload);
+            } else {
+              _enable(upload);
+            }
+            _hide(bar);
+            _enable(formInputs);
+          };
 
-            /**
-             * Add new item to item list.
-             */
-            var _addItem = function (fid, hash, preview, item) {
-              // When adding items in javascript, we don't care about the 'drop'
-              // checkbox, since it will be fully handled by the javascript code.
-              var remove = $(config.template.remove);
-              if (!item) {
-                item = $('<li data-fid="' + fid + '"></li>');
-              }
-              $(items).append(item.append(preview).append(remove.on('click', _removeOnClick)));
-              if (fid) {
-                value[fid] = hash;
-                _updateValue();
-              }
-            };
-
-            /**
-             * Remove item from server callback.
-             */
-            var _removeOnClick = function (event) {
-              event.stopPropagation();
-              event.preventDefault();
-
-              var item = $(this).closest('li'), fid = item.attr('data-fid');
-              _remove(config.url.remove, fid, config.token);
-
-              // Remove item from FROM and settings.
-              $(items).find('[data-fid=' + fid + ']').remove();
-              delete value[fid];
+          /**
+           * Add new item to item list.
+           */
+          var _addItem = function (fid, hash, preview, item) {
+            // When adding items in javascript, we don't care about the 'drop'
+            // checkbox, since it will be fully handled by the javascript code.
+            var remove = $(removeButtonTemplate);
+            if (!item) {
+              item = $(itemPreviewTemplate.replace('FID', fid));
+            }
+            $(items).append(item.append(preview).append(remove.on('click', _removeOnClick)));
+            if (fid) {
+              value[fid] = hash;
               _updateValue();
-            };
+            }
+          };
 
-            /**
-             * Show error message
-             */
-            var _showError = function (message) {
-              errorZone.html(message);
-              _show(errorZone);
-            };
+          /**
+           * Remove item from server callback.
+           */
+          var _removeOnClick = function (event) {
+            event.stopPropagation();
+            event.preventDefault();
 
-            /**
-             * Hide error messages
-             */
-            var _hideError = function () {
-              errorZone.html('');
-              _hide(errorZone);
-            };
+            var item = $(this).closest('li'), fid = item.attr('data-fid');
+            _remove(removeUrl, fid, token);
 
-            /**
-             * For whatever that happens, this will run the file upload.
-             */
-            function onUploadChange (event) {
-              event = event || window.event; // Old browser support.
+            // Remove item from FROM and settings.
+            $(items).find('[data-fid=' + fid + ']').remove();
+            delete value[fid];
+            _updateValue();
+          };
 
-              var files = this.files, file, i = 0;
-              if (!files || !files.length) {
-                return; // Nothing to deal with...
-              }
+          /**
+           * Show error message
+           */
+          var _showError = function (message) {
+            errorZone.html(message);
+            _show(errorZone);
+          };
 
-              _show(bar);
-              _disable(formInputs);
+          /**
+           * Hide error messages
+           */
+          var _hideError = function () {
+            errorZone.html('');
+            _hide(errorZone);
+          };
 
-              // Now the hard part.
-              for (i, file; file = files[i]; ++i) {
-                _upload(config.url.upload, file, 0, config.chunksize, config.token, _updateProgress, function (response) {
-                  if (response.finished) {
-                    _addItem(response.fid, response.hash, response.preview);
-                  }
-                }, function (response) {
-                  if (response && response.message) {
-                    _showError(response.message);
-                  }
-                });
-              }
+          /**
+           * For whatever that happens, this will run the file upload.
+           */
+          function onUploadChange (event) {
+            event = event || window.event; // Old browser support.
 
-              // Proceed with element replacement.
-              var clone = this.cloneNode(true);
-              this.parentNode.replaceChild(clone, this);
-              clone.onchange = onUploadChange;
-              _hideError();
-              return false;
+            var files = this.files, file, i = 0;
+            if (!files || !files.length) {
+              return; // Nothing to deal with...
             }
 
-            upload.get(0).onchange = onUploadChange;
-            upload.get(0).ondrop = onUploadChange;
+            _show(bar);
+            _disable(formInputs);
 
-            // Adds the missing remove buttons from the start.
-            items.find('li').each(function () {
-              _addItem(null, null, null, $(this));
-            });
+            // Now the hard part.
+            for (i, file; file = files[i]; ++i) {
+              _upload(uploadUrl, file, 0, chunksize, token, _updateProgress, function (response) {
+                if (response.finished) {
+                  _addItem(response.fid, response.hash, response.preview);
+                }
+              }, function (response) {
+                if (response && response.message) {
+                  _showError(response.message);
+                }
+              });
+            }
 
-            _refresh();
-
+            // Proceed with element replacement.
+            var clone = this.cloneNode(true);
+            this.parentNode.replaceChild(clone, this);
+            clone.onchange = onUploadChange;
+            _hideError();
             return false;
+          }
+
+          upload.get(0).onchange = onUploadChange;
+          upload.get(0).ondrop = onUploadChange;
+
+          // Adds the missing remove buttons from the start.
+          items.find('li').each(function () {
+            _addItem(null, null, null, $(this));
           });
+
+          _refresh();
+
+          return false;
         });
-      }
+      });
     }
   };
 }(jQuery));
