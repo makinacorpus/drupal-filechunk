@@ -225,7 +225,7 @@
               _enable(upload);
             }
             _hide(bar);
-            _enable(formInputs);
+            //_enable(formInputs);
           };
 
           /**
@@ -289,7 +289,7 @@
             }
 
             _show(bar);
-            _disable(formInputs);
+            //_disable(formInputs);
 
             // Now the hard part.
             for (i, file; file = files[i]; ++i) {
