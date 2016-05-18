@@ -267,6 +267,7 @@ function filechunk_element_process($element) {
     '#theme_wrappers' => ['filechunk_file_input'],
     '#prefix'         => '<div class="filechunk-widget-table"><div class="filechunk-widget-row"><div class="filechunk-widget-drop"><span style="display: none;" class="text-muted message">' . t("Drag and drop files or click here to add more files...") . '</span>',
     '#suffix'         => '</div></div></div>',
+    '#attributes'     => [],
   ];
   if ($element['#multiple']) {
     $element['upload']['#attributes']['multiple'] = 'multiple';
