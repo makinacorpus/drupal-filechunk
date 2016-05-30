@@ -2,6 +2,17 @@
 (function ($) {
   "use strict";
 
+  function debug(message, object) {
+    if (console && console.log) {
+      if (message) {
+        console.log(message);
+      }
+      if (object) {
+        console.log(message);
+      }
+    }
+  }
+
   /**
    * Not very proud of this, but it does work.
    *
@@ -131,6 +142,21 @@
     });
   }
 
+  function checkNumber(value) {
+    if ("number" === typeof value) {
+      return value;
+    }
+    if ("string" === typeof value) {
+      value = parseInt(value, 10);
+      if (isNaN(value)) {
+        throw "Invalid argument, number is not a number";
+      }
+    } else {
+      throw "Invalid argument, number is not a number";
+    }
+    return value;
+  }
+
   /**
    * Drupal behavior.
    */
@@ -160,12 +186,13 @@
             token                 = element.getAttribute('data-token'),
             value                 = JSON.parse(element.getAttribute('data-default') || '{}'),
             isMultiple            = !!element.getAttribute('multiple'),
-            chunksize             = element.getAttribute('data-chunksize') || (1024 * 1024 * 2),
+            chunksize             = checkNumber(element.getAttribute('data-chunksize') || (1024 * 1024 * 2)),
             uploadUrl             = element.getAttribute('data-uri-upload'),
             removeUrl             = element.getAttribute('data-uri-remove'),
             removeButtonTemplate  = element.getAttribute('data-tpl-remove') || '<button class="filechunk-remove btn btn-primary" type="submit" value="Remove">Remove</button>',
             itemPreviewTemplate   = element.getAttribute('data-tpl-item') || '<li data-fid="FID"></li>'
           ;
+
           if (!token) {
             throw "data-token is mandatory";
           }
@@ -283,7 +310,7 @@
           function onUploadChange (event) {
             event = event || window.event; // Old browser support.
 
-            var files = this.files, file, i = 0;
+            var files = this.files;
             if (!files || !files.length) {
               return; // Nothing to deal with...
             }
@@ -292,7 +319,10 @@
             //_disable(formInputs);
 
             // Now the hard part.
-            for (i, file; file = files[i]; ++i) {
+            var i = 0;
+            var file = 0;
+            for (i; files[i]; ++i) {
+              file = files[i];
               _upload(uploadUrl, file, 0, chunksize, token, _updateProgress, function (response) {
                 if (response.finished) {
                   _addItem(response.fid, response.hash, response.preview);
@@ -317,7 +347,12 @@
 
           // Adds the missing remove buttons from the start.
           items.find('li').each(function () {
-            _addItem(null, null, null, $(this));
+            var fid = this.getAttribute('data-fid');
+            if (!fid) {
+              debug("Invalid item, removing it from data list", this);
+              this.parent.removeChild(this);
+            }
+            _addItem(fid, null, null, $(this));
           });
 
           _refresh();
