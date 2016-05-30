@@ -318,6 +318,8 @@
             _show(bar);
             //_disable(formInputs);
 
+            _updateProgress(0);
+
             // Now the hard part.
             var i = 0;
             var file = 0;
