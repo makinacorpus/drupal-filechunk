@@ -218,9 +218,10 @@
           /**
            * Update progress bar callback.
            */
-          var _updateProgress = function (percent) {
+          var _updateProgress = function (percent, message) {
             var percentage = parseInt(percent, 10) + '%';
-            bar.find('.progress-bar').css('width', percentage).html(percentage);
+            message = message || percentage;
+            bar.find('.progress-bar').css('width', percentage).html(message);
           };
 
           /**
@@ -316,15 +317,16 @@
             }
 
             _show(bar);
-            //_disable(formInputs);
-
             _updateProgress(0);
+            //_disable(formInputs);
 
             // Now the hard part.
             var i = 0;
             var file = 0;
             for (i; files[i]; ++i) {
               file = files[i];
+              _showError(Drupal.t("Uploading file @file...", {'@file': file.name}));
+
               _upload(uploadUrl, file, 0, chunksize, token, _updateProgress, function (response) {
                 if (response.finished) {
                   _addItem(response.fid, response.hash, response.preview);
