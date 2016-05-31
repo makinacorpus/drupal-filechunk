@@ -35,12 +35,11 @@ function filechunk_field_widget_settings_form($field, $instance) {
 function filechunk_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
   return [
     '#type'               => 'file_chunked',
-    '#title'              => $instance['label'],
     '#default_value'      => $items,
     '#upload_location'    => file_field_widget_uri($field, $instance),
     '#upload_validators'  => file_field_widget_upload_validators($field, $instance),
     '#multiple'           => 1 !== (int)$field['cardinality'],
     '#convert_to_array'   => true,
     '#arbitrary_values'   => ['display' => 1],
-  ];
+  ] + $element;
 }
