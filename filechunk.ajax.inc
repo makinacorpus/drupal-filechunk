@@ -100,8 +100,8 @@ function filechunk_upload_callback() {
   global $user;
 
   $filename   = $_SERVER['HTTP_X_FILE_NAME'];
-  $directory  = filechunk_upload_dir_get() . '/' . $user->uid;
-  $absolute   = $directory . $filename;
+  $directory  = filechunk_upload_dir_get() . $user->uid;
+  $absolute   = $directory . '/' . $filename;
 
   list($start, $stop, $filesize) = filechunk_parse_range($_SERVER['HTTP_CONTENT_RANGE']);
   $start      = (int)$start;
