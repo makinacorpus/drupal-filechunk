@@ -175,11 +175,16 @@
             parent      = $(this),
             upload      = parent.find('input[type=file]'),
             element     = upload.get(0),
+            clone       = null,
             formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove):not([type=file])'),
             items       = parent.find('.filechunk-thumbnail'),
             valueInput  = parent.find("[rel=fid]"),
             bar         = parent.find('.file-progress')
           ;
+
+          upload.closest('form').find('button').on('click', function () {
+            console.log("coucou");
+          });
 
           // Configuration parse
           var
@@ -189,6 +194,7 @@
             chunksize             = checkNumber(element.getAttribute('data-chunksize') || (1024 * 1024 * 2)),
             uploadUrl             = element.getAttribute('data-uri-upload'),
             removeUrl             = element.getAttribute('data-uri-remove'),
+            // @todo change data-tpl-remove or add it within the fields.html.twig macro
             removeButtonTemplate  = element.getAttribute('data-tpl-remove') || '<button class="filechunk-remove btn btn-primary" type="submit" value="Remove">Remove</button>',
             itemPreviewTemplate   = element.getAttribute('data-tpl-item') || '<li data-fid="FID"></li>'
           ;
@@ -203,6 +209,9 @@
             throw "data-uri-remove is mandatory";
           }
 
+          // Append correct behavior onto existing buttons
+          parent.find('.filechunk-remove').on('click', _removeOnClick);
+
           // Create the error display div
           var errorZone = $('<div class="messages error file-upload-js-error" aria-live="polite"></div>');
           _hide(errorZone);
@@ -212,8 +221,12 @@
           // downgrade stuff before proceeding.
           parent.find('.filechunk-drop').remove();
           parent.find('[rel=downgrade]').val('');
+          upload.removeAttr('required');
           _show(parent.find('.message'));
           upload.css({opacity: 0, position: "absolute", top: 0, left: 0, width: "100%", height: "100%"});
+
+          // Clone must be done after theming
+          clone = element.cloneNode(true);
 
           /**
            * Update progress bar callback.
@@ -225,18 +238,11 @@
           };
 
           /**
-           * Restore value into the right form input.
-           */
-          var _updateValue = function () {
-            valueInput.val(JSON.stringify(value));
-            _refresh();
-          };
-
-          /**
            * Refresh UI (enable, disable buttons and submits).
            */
           var _refresh = function () {
             var key, hasValue = false;
+            valueInput.val(JSON.stringify(value));
             // Attempt deactivation of submit widget when in not multiple mode
             // to ensure that only one value may be uploaded.
             if (!isMultiple) {
@@ -269,7 +275,7 @@
             $(items).append(item.append(preview).append(remove.on('click', _removeOnClick)));
             if (fid) {
               value[fid] = hash;
-              _updateValue();
+              _refresh();
             }
           };
 
@@ -284,9 +290,9 @@
             _remove(removeUrl, fid, token);
 
             // Remove item from FROM and settings.
-            $(items).find('[data-fid=' + fid + ']').remove();
+            $(items).find('[data-fid="' + fid + '"]').remove();
             delete value[fid];
-            _updateValue();
+            _refresh();
           };
 
           /**
@@ -300,10 +306,17 @@
           /**
            * Hide error messages
            */
-          var _hideError = function () {
+          function _hideError () {
             errorZone.html('');
             _hide(errorZone);
-          };
+          }
+
+          function _replaceUpload () {
+            element.parentNode.replaceChild(clone, element);
+            clone.onchange = onUploadChange;
+            element = clone;
+            upload = $(clone);
+          }
 
           /**
            * For whatever that happens, this will run the file upload.
@@ -339,10 +352,9 @@
             }
 
             // Proceed with element replacement.
-            var clone = this.cloneNode(true);
-            this.parentNode.replaceChild(clone, this);
-            clone.onchange = onUploadChange;
+            _replaceUpload();
             _hideError();
+
             return false;
           }
 
@@ -354,9 +366,10 @@
             var fid = this.getAttribute('data-fid');
             if (!fid) {
               debug("Invalid item, removing it from data list", this);
-              this.parent.removeChild(this);
+              this.parentNode.removeChild(this);
+            } else {
+              _addItem(fid, null, null, $(this));
             }
-            _addItem(fid, null, null, $(this));
           });
 
           _refresh();
