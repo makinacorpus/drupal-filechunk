@@ -1,0 +1,99 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: 2016-10-19 15:57+0200\n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"X-Generator: Poedit 1.8.6\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:87
+msgid "Input field has expired, please reload the form"
+msgstr "Le champ a expiré, merci de recharger le formulaire"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:125
+msgid "Cannot create temporary directory"
+msgstr "Impossible de créer le dossier temporaire"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:139
+msgid "Cannot overwrite another file"
+msgstr "Impossible d'écraser un autre fichier"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:151
+msgid "Cannot create file"
+msgstr "Impossible de créer le fichier"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:162
+msgid "Unable to load metadata"
+msgstr "Impossible de charger les métadonnées"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:168
+msgid "File should exists"
+msgstr "Le fichier doit exister"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:178
+msgid "Could not open output stream"
+msgstr "Impossible d'ouvrir le flux de sortie"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:217
+msgid "Could not open input stream"
+msgstr "Impossible d'ouvrir le flux d'entrée"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:222
+msgid "Could not seek output stream"
+msgstr "Impossible de trouver le flux de sortie"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:145;174
+msgid "File size does not match"
+msgstr "La taille du fichier ne correspond pas"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.element.inc:130
+msgid "Uploaded files are corrupted."
+msgstr "Les fichiers transférés sont corrompus."
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.element.inc:145
+msgid "Uploaded file is corrupted."
+msgstr "Le fichier transféré est corrompu."
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.element.inc:175
+msgid "Could not move the uploaded file."
+msgstr "Impossible de déplacer le fichier trasnféré."
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.element.inc:265
+msgid "Choose a file"
+msgstr "Choisir un fichier"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.element.inc:268
+msgid "Drag and drop files or click here to add more files..."
+msgstr "Glisser-déposer des fichiers ou cliquer ici pour ajouter des fichiers…"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.element.inc:303
+msgid "Remove"
+msgstr "Retirer"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.element.inc:330
+msgid "Remove file"
+msgstr "Retirer le fichier"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.field.inc:13
+msgid "Chunked file"
+msgstr "Morceau de fichier"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.field.inc:14
+msgid ""
+"JavaScript file upload widget that sends file as chunks, useful for huge "
+"files and appropriate whenever you want to disable the Drupal form cache."
+msgstr ""
+"Widget de transfert JavaScript envoyant les fichiers par morceaux, utile "
+"pour les gros fichiers et approprié pour les cas ou le cache Drupal est "
+"désactivé."
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.js:0
+msgid "Uploading file @file..."
+msgstr "Transfert de @file..."
