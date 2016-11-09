@@ -171,33 +171,37 @@
       $(context).find(".filechunk-widget").once('filechunk', function () {
         $(this).each(function () {
 
-          var
-            parent      = $(this),
-            upload      = parent.find('input[type=file]'),
-            element     = upload.get(0),
-            clone       = null,
-            formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove):not([type=file])'),
-            items       = parent.find('.filechunk-thumbnail'),
-            valueInput  = parent.find("[rel=fid]"),
-            bar         = parent.find('.file-progress')
-          ;
-
-          upload.closest('form').find('button').on('click', function () {
-            console.log("coucou");
-          });
+          var parent      = $(this);
+          var upload      = parent.find('input[type=file]');
+          var element     = upload.get(0);
+          var clone       = null;
+          var formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove):not([type=file])');
+          var items       = parent.find('.filechunk-thumbnail');
+          var valueInput  = parent.find("[rel=fid]");
+          var bar         = parent.find('.file-progress');
 
           // Configuration parse
-          var
-            token                 = element.getAttribute('data-token'),
-            value                 = JSON.parse(element.getAttribute('data-default') || '{}'),
-            isMultiple            = !!element.getAttribute('multiple'),
-            chunksize             = checkNumber(element.getAttribute('data-chunksize') || (1024 * 1024 * 2)),
-            uploadUrl             = element.getAttribute('data-uri-upload'),
-            removeUrl             = element.getAttribute('data-uri-remove'),
-            // @todo change data-tpl-remove or add it within the fields.html.twig macro
-            removeButtonTemplate  = element.getAttribute('data-tpl-remove') || '<button class="filechunk-remove btn btn-primary" type="submit" value="Remove">Remove</button>',
-            itemPreviewTemplate   = element.getAttribute('data-tpl-item') || '<li data-fid="FID"></li>'
-          ;
+          var token                 = element.getAttribute('data-token');
+          var value                 = null;
+          var isMultiple            = !!element.getAttribute('multiple');
+          var chunksize             = checkNumber(element.getAttribute('data-chunksize') || (1024 * 1024 * 2));
+          var uploadUrl             = element.getAttribute('data-uri-upload');
+          var removeUrl             = element.getAttribute('data-uri-remove');
+          var removeButtonTemplate  = element.getAttribute('data-tpl-remove') || '<button class="filechunk-remove btn btn-primary" type="submit" value="Remove">Remove</button>';
+          var itemPreviewTemplate   = element.getAttribute('data-tpl-item') || '<li data-fid="FID"></li>';
+
+          // Populate initial value, first method is for the Drupal module
+          var stringValue = element.getAttribute('data-default');
+          if (!stringValue) {
+            // And second method (this one) is for the Symfony form type
+            stringValue = valueInput.val();
+          }
+          if (stringValue) {
+            value = JSON.parse(stringValue);
+          }
+          if (!value) {
+            value = {};
+          }
 
           if (!token) {
             throw "data-token is mandatory";
@@ -265,17 +269,26 @@
           /**
            * Add new item to item list.
            */
-          var _addItem = function (fid, hash, preview, item) {
+          var _addItem = function (fid, hash, preview, item, disableRefresh) {
             // When adding items in javascript, we don't care about the 'drop'
             // checkbox, since it will be fully handled by the javascript code.
             var remove = $(removeButtonTemplate);
             if (!item) {
               item = $(itemPreviewTemplate.replace('FID', fid));
             }
+            if (false === hash) {
+              if (value[fid]) {
+                hash = value[fid];
+              } else {
+                hash = null; // This should be an error case
+              }
+            }
             $(items).append(item.append(preview).append(remove.on('click', _removeOnClick)));
             if (fid) {
               value[fid] = hash;
-              _refresh();
+              if (!disableRefresh) {
+                _refresh();
+              }
             }
           };
 
@@ -368,7 +381,7 @@
               debug("Invalid item, removing it from data list", this);
               this.parentNode.removeChild(this);
             } else {
-              _addItem(fid, null, null, $(this));
+              _addItem(fid, false, null, $(this), true);
             }
           });
 
