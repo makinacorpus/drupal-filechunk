@@ -187,7 +187,7 @@
           var chunksize             = checkNumber(element.getAttribute('data-chunksize') || (1024 * 1024 * 2));
           var uploadUrl             = element.getAttribute('data-uri-upload');
           var removeUrl             = element.getAttribute('data-uri-remove');
-          var removeButtonTemplate  = element.getAttribute('data-tpl-remove') || '<button class="filechunk-remove btn btn-primary" type="submit" value="Remove">Remove</button>';
+          var removeButtonTemplate  = element.getAttribute('data-tpl-remove') || '<button class="filechunk-remove btn btn-primary" type="submit" value="Remove">' + Drupal.t("Remove") + '</button>';
           var itemPreviewTemplate   = element.getAttribute('data-tpl-item') || '<li data-fid="FID"></li>';
 
           // Populate initial value, first method is for the Drupal module
