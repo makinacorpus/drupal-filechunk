@@ -99,7 +99,12 @@ function filechunk_upload_callback() {
 
   global $user;
 
-  $filename   = $_SERVER['HTTP_X_FILE_NAME'];
+  $filename = $_SERVER['HTTP_X_FILE_NAME'];
+  // File name might be encoded in base64 to avoid encoding errors
+  if ('==' === substr($filename, -2)) {
+    $filename = base64_decode($filename);
+  }
+
   $directory  = filechunk_upload_dir_get() . $user->uid;
   $absolute   = $directory . '/' . $filename;
 
