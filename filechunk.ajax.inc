@@ -101,7 +101,7 @@ function filechunk_upload_callback() {
 
   $filename = $_SERVER['HTTP_X_FILE_NAME'];
   // File name might be encoded in base64 to avoid encoding errors
-  if ('==' === substr($filename, -2) || (false === strpos($filename, '.') && preg_match('#^@[a-zA-Z0-9+/]+={0,2}$#', $filename))) {
+  if ('==' === substr($filename, -2) || (false === strpos($filename, '.') && preg_match('#^[a-zA-Z0-9\+/]+={0,2}$#ims', $filename))) {
     $filename = base64_decode($filename);
   }
 
