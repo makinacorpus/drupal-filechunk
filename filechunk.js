@@ -167,6 +167,7 @@
           var value                 = null;
           var isMultiple            = !!element.getAttribute('multiple');
           var chunksize             = checkNumber(element.getAttribute('data-chunksize') || (1024 * 1024 * 2));
+          var maxCount              = element.getAttribute('data-max-count');
           var uploadUrl             = element.getAttribute('data-uri-upload');
           var removeUrl             = element.getAttribute('data-uri-remove');
           var removeButtonTemplate  = element.getAttribute('data-tpl-remove') || '<button class="filechunk-remove btn btn-primary" type="submit" value="Remove">' + Drupal.t("Remove") + '</button>';
@@ -315,7 +316,14 @@
 
             var files = this.files;
             if (!files || !files.length) {
+              _replaceUpload();
               return; // Nothing to deal with...
+            }
+
+            if (maxCount && Object.keys(value).length >= maxCount) {
+              _showError(Drupal.t("A maximum of @count elements is allowed", {'@count': maxCount}));
+              _replaceUpload();
+              return;
             }
 
             _show(bar);
