@@ -175,7 +175,6 @@
           var parent      = $(this);
           var upload      = parent.find('input[type=file]');
           var element     = upload.get(0);
-          var clone       = null;
           var formInputs  = upload.closest('form').find('input:enabled:not(.filechunk-remove):not([type=file])');
           var items       = parent.find('.filechunk-thumbnail');
           var valueInput  = parent.find("[rel=fid]");
@@ -229,9 +228,6 @@
           upload.removeAttr('required');
           _show(parent.find('.message'));
           upload.css({opacity: 0, position: "absolute", top: 0, left: 0, width: "100%", height: "100%"});
-
-          // Clone must be done after theming
-          clone = element.cloneNode(true);
 
           /**
            * Update progress bar callback.
@@ -326,10 +322,13 @@
           }
 
           function _replaceUpload () {
-            element.parentNode.replaceChild(clone, element);
-            clone.onchange = onUploadChange;
-            element = clone;
-            upload = $(clone);
+            // https://stackoverflow.com/a/16596041
+            if ($.browser.msie) {
+              upload.replaceWith(upload.clone());
+              upload = parent.find('input[type=file]');
+            } else {
+              upload.val('');
+            }
           }
 
           /**
