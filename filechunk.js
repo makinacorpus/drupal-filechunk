@@ -100,24 +100,6 @@
   }
 
   /**
-   * Disable element.
-   *
-   * @param DOMNode|selector element
-   */
-  function _disable(element) {
-    $(element).attr('disabled', 'disabled').addClass('disabled');
-  }
-
-  /**
-   * Enable element.
-   *
-   * @param DOMNode|selector element
-   */
-  function _enable(element) {
-    $(element).removeAttr('disabled').removeClass('disabled');
-  }
-
-  /**
    * Show element.
    *
    * @param DOMNode|selector element
@@ -254,13 +236,7 @@
                 }
               }
             }
-            if (hasValue) {
-              _disable(upload);
-            } else {
-              _enable(upload);
-            }
             _hide(bar);
-            //_enable(formInputs);
           };
 
           /**
@@ -344,7 +320,6 @@
 
             _show(bar);
             _updateProgress(0);
-            //_disable(formInputs);
 
             // Now the hard part.
             var i = 0;
