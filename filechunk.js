@@ -300,7 +300,7 @@
 
           function _replaceUpload () {
             // https://stackoverflow.com/a/16596041
-            if ($.browser.msie) {
+            if ($.browser && $.browser.msie) {
               upload.replaceWith(upload.clone());
               upload = parent.find('input[type=file]');
             } else {
