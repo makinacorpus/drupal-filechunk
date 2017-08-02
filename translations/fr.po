@@ -97,3 +97,7 @@ msgstr ""
 #: sites/all/modules/composer/drupal-filechunk/filechunk.js:0
 msgid "Uploading file @file..."
 msgstr "Transfert de @file..."
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.js:324
+msgid "A maximum of @count elements is allowed"
+msgstr "@count éléments maximum sont autorisés"
