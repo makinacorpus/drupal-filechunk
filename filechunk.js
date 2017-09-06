@@ -320,7 +320,7 @@
               return; // Nothing to deal with...
             }
 
-            if (maxCount && Object.keys(value).length >= maxCount) {
+            if (maxCount && (Object.keys(value).length + files.length) > maxCount) {
               _showError(Drupal.t("A maximum of @count elements is allowed", {'@count': maxCount}));
               _replaceUpload();
               return;
