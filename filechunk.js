@@ -167,7 +167,7 @@
           var value                 = null;
           var isMultiple            = !!element.getAttribute('multiple');
           var chunksize             = checkNumber(element.getAttribute('data-chunksize') || (1024 * 1024 * 2));
-          var maxCount              = element.getAttribute('data-max-count');
+          var maxCount              = isMultiple ? element.getAttribute('data-max-count') : 1;
           var uploadUrl             = element.getAttribute('data-uri-upload');
           var removeUrl             = element.getAttribute('data-uri-remove');
           var removeButtonTemplate  = element.getAttribute('data-tpl-remove') || '<button class="filechunk-remove btn btn-primary" type="submit" value="Remove">' + Drupal.t("Remove") + '</button>';
