@@ -35,7 +35,7 @@
     xhr.setRequestHeader("Accept", "application/json");
     xhr.setRequestHeader("X-File-Name", btoa(unescape(encodeURIComponent(file.name))));
     xhr.setRequestHeader("Content-Range", "bytes " + start + "-" + stop + "/" + file.size);
-    xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded; charset=UTF-8');
+    xhr.setRequestHeader('Content-type', 'application/octet-stream');
     if (token) {
       xhr.setRequestHeader("X-File-Token", token);
     }
