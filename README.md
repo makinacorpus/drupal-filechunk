@@ -1,7 +1,11 @@
 # Drupal chunked file upload widget
 
-Adds a managed file widget that uploads files per chunks using pure JavaScript
-and a FileReader API polysill for older browsers.
+Adds a managed file widget that uploads files per chunks using pure JavaScript.
+
+## JavaScript source code
+
+JavaScript source code is written using TypeScript, you can find it there:
+https://github.com/makinacorpus/filechunk-front
 
 ## Side by side with Gulpifier
 

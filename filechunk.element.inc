@@ -92,35 +92,7 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
   }
 
   if ($input) {
-
-    if (!empty($input['drop'])) {
-      return null; // And yes, do not keep this frakking file.
-    }
-
-    if ($input['downgrade']) {
-
-      $files = $defaults;
-
-      // Fallback on non-js mode.
-      if (!empty($input['items'])) {
-        foreach ($input['items'] as $data) {
-          if ($data['drop']) {
-            // $data['drop'] is a checkbox with fid as #return_value.
-            unset($defaults[$data['drop']]);
-          }
-        }
-      }
-      // Once we got rid of removed elements, reset the array keys to
-      // a normal array to keep consistency.
-      $files = array_values($defaults);
-
-      // @todo Make this work
-      //   Need own file upload manager (no Drupal)
-      if ($file = file_managed_file_save_upload($element)) {
-        $files[] = $file;
-      }
-
-    } else if (!empty($input['fid'])) {
+    if (!empty($input['fid'])) {
 
       if ($input['fid'] === '{}') {
         $hasMap = [];
@@ -132,18 +104,33 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
         }
       }
 
-      // The JavaScript widget takes over the default browser behavior.
-      foreach ($hasMap as $fid => $hash) {
+      foreach ($hasMap as $fid => $info) {
+
+        if (!is_array($info)) {
+          // Input is invalid, but let's remain compatible with previous
+          // JavaScript versions and consider this is a plain hash.
+          $info = ['hash' => $info];
+        }
 
         if (isset($defaults[$fid])) {
-          $files[] = $defaults[$fid]; // Nothing to do, file is default.
+          // Nothing to do, file is default.
+          $files[] = $defaults[$fid];
           continue;
         }
 
-        $file = filechunk_element_check_file($fid, $hash);
+        if (!isset($info['hash'])) {
+          // Attempt to use a file using identifier without giving an hash and
+          // whose not present within defaults: security breakage attempt.
+          form_error($element, t("Uploaded files are corrupted."));
+          return $defaults;
+        }
+
+        $file = filechunk_element_check_file($fid, $info['hash']);
         if (!$file) {
+          // No hash means corrupted upload, just ignore. This is not a security
+          // issue since we don't let reuse of a non existing or another file.
           form_error($element, t("Uploaded file is corrupted."));
-          continue; // No hash means corrupted upload, just ignore.
+          continue;
         } else {
           $files[] = $file;
         }
@@ -214,7 +201,7 @@ function theme_filechunk_file_input($variables) {
  * whatever are the chunked uploaded file information in order to be able to
  * find it back.
  */
-function filechunk_element_process($element) {
+function filechunk_element_process($element, &$form_state) {
 
   $element['#tree'] = true;
 
@@ -236,9 +223,9 @@ function filechunk_element_process($element) {
   // In a few cases, but not all, the form API gives back the structure
   // array of the element, which is bad.
   foreach ($values as $value) {
-    // Needs to be casted as string else the encoded JSON will be an
-    // an array, and boom!
-    $hashmap[(string)$value->fid] = null; // This is a default.
+    // Needs to be casted as string else the encoded JSON will be an an array
+    // and it will explode in front script at JSON.parse().
+    $hashmap[(string)$value->fid] = ['filename' => ((array)$value)['filename']];
   }
 
   $element['#value'] = $values;
@@ -265,7 +252,7 @@ function filechunk_element_process($element) {
     '#title'          => t('Choose a file'),
     '#title_display'  => 'invisible',
     '#theme_wrappers' => ['filechunk_file_input'],
-    '#prefix'         => '<div class="filechunk-widget-table"><div class="filechunk-widget-row"><div class="filechunk-widget-drop"><span style="display: none;" class="text-muted message">' . t("Drag and drop files or click here to add more files...") . '</span>',
+    '#prefix'         => '<div class="filechunk-widget-table"><div class="filechunk-widget-row"><div class="filechunk-widget-drop"><span class="text-muted message">' . t("Drag and drop files or click here to add more files...") . '</span>',
     '#suffix'         => '</div></div></div>',
     '#attributes'     => [],
   ];
@@ -273,29 +260,11 @@ function filechunk_element_process($element) {
     $element['upload']['#attributes']['multiple'] = 'multiple';
   }
 
-  $element['progress'] = [
-    '#prefix'         => '<div class="file-progress" style="display: none;">',
-    '#suffix'         => '</div>',
-    '#theme'          => 'progress_bar'
-  ];
-
   // Hidden element containing the JavaScript result, if any.
   $element['fid'] = [
     '#type'           => 'hidden',
     '#attributes'     => ['rel' => 'fid'],
-    '#default_value'  => null,
-  ];
-  $element['downgrade'] = [
-    '#type'           => 'hidden',
-    '#attributes'     => ['rel' => 'downgrade'],
-    '#default_value'  => 1,
-  ];
-
-  // Set the default preview value if any.
-  $element['items'] = [
-    '#markup'         => '',
-    '#prefix'         => '<ul class="filechunk-thumbnail">',
-    '#suffix'         => '</ul>',
+    '#default_value'  => json_encode((object)$hashmap),
   ];
 
   $removeButton = [
@@ -308,33 +277,12 @@ function filechunk_element_process($element) {
   // avoid default Drupal form caching.
   $element['upload']['#attributes'] += array_filter([
     'data-token'      => $token = drupal_get_token(),
-    'data-default'    => json_encode((object)$hashmap),
     'data-chunksize'  => variable_get('filechunk_chunk_size', null),
     'data-uri-upload' => url('system/chunk-upload'),
     'data-uri-remove' => url('system/chunk-remove'),
     'data-tpl-remove' => theme('button', ['element' => $removeButton]),
     'data-tpl-item'   => '<li data-fid="FID"></li>',
   ]);
-
-  if ($values) {
-    unset($element['items']['#markup']);
-    // Do not alter this markup, it is also built in javascript.
-    foreach ($values as $index => $value) {
-      $element['items'][$index]['#prefix'] = '<li data-fid="' . $value->fid . '">';
-      $element['items'][$index]['#suffix'] = '</li>';
-      $element['items'][$index]['file'] = filechunk_element_file_display($value);
-      // Add a 'remove' checkbox, ugly but working.
-      if ($element['#append_remove']) {
-        $element['items'][$index]['drop'] = [
-          '#type'           => 'checkbox',
-          '#title'          => t("Remove file"),
-          '#default_value'  => false,
-          '#return_value'   => $value->fid,
-          '#attributes'     => ['class' => ['filechunk-drop']],
-        ];
-      }
-    }
-  }
 
   // This is a workaround for the http://github.com/makinacorpus/drupal-badm
   // bootstrap based admin theme.
