@@ -2,6 +2,16 @@
 
 Adds a managed file widget that uploads files per chunks using pure JavaScript.
 
+Version 1.x carries its own JavaScript widget, which due to a recent regression
+does not work with Internet Explorer 11 anymore.
+
+Version 2.x brings a shared widget fully rewritten using TypeScript, targetting
+es5, transpiled and polyfilled using Babel, which works gracefully with IE11.
+
+*Version 2.x brings the untested gracefull downgrade feature, which makes it*
+*unusable with Internet Explorer <11 and with browsers which don't support the*
+*FileReader API.*
+
 ## JavaScript source code
 
 JavaScript source code is written using TypeScript, you can find it there:
