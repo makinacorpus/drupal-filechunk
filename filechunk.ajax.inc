@@ -104,6 +104,10 @@ function filechunk_upload_callback() {
   if ('==' === substr($filename, -2) || (false === strpos($filename, '.') && preg_match('#^[a-zA-Z0-9\+/]+={0,2}$#ims', $filename))) {
     $filename = base64_decode($filename);
   }
+  // JavaScript widget will use encodeURIComponent() in which space char is
+  // encoded using %20 and not +, so we are safe to use rawurldecode() and not
+  // urldecode() here.
+  $filename = rawurldecode($filename);
 
   $directory  = filechunk_upload_dir_get() . $user->uid;
   $absolute   = $directory . '/' . $filename;
