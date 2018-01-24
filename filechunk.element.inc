@@ -80,7 +80,11 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
 
     foreach ($element['#default_value'] as $item) {
       if (is_numeric($item)) {
-        $defaults[(int)$item] = file_load($item);
+        if ($file = file_load($item)) {
+          $defaults[(int)$item] = $file;
+        } else {
+          watchdog(__FUNCTION__, "Could not load file @id", ['@id' => $item], WATCHDOG_ERROR);
+        }
       } else if (is_array($item) && !empty($item['fid'])) {
         $defaults[(int)$item['fid']] = (object)$item;
       } else if (is_object($item) && property_exists($item, 'fid')) {
