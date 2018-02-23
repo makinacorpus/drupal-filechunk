@@ -62,7 +62,7 @@ function filechunk_library() {
   return [
     'widget' => [
       'title' => "Chunked file widget",
-      'version' => '1.0',
+      'version' => '1.0.2',
       'js' => [drupal_get_path('module', 'filechunk') . '/filechunk.js' => []],
       'css' => [drupal_get_path('module', 'filechunk') . '/filechunk.css' => []],
     ],
