@@ -14,6 +14,14 @@ msgstr ""
 "X-Poedit-SourceCharset: UTF-8\n"
 
 #: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:87
+msgid "Maximum file size allowed is @bytes bytes"
+msgstr "La taille maximale de fichier autorisée est de @bytes bytes"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:87
+msgid "Maximum file size allowed is @mega mo"
+msgstr "La taille maximale de fichier autorisée est de @mega mega-octets"
+
+#: sites/all/modules/composer/drupal-filechunk/filechunk.ajax.inc:87
 msgid "Input field has expired, please reload the form"
 msgstr "Le champ a expiré, merci de recharger le formulaire"
 
