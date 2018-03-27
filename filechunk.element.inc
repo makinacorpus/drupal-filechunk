@@ -229,7 +229,9 @@ function filechunk_element_process($element, &$form_state) {
   foreach ($values as $value) {
     // Needs to be casted as string else the encoded JSON will be an an array
     // and it will explode in front script at JSON.parse().
-    $hashmap[(string)$value->fid] = ['filename' => ((array)$value)['filename']];
+    // 2-step array derefencing else it won't work with PHP <7.
+    $temp = (array)$value;
+    $hashmap[(string)$value->fid] = ['filename' => $temp['filename']];
   }
 
   $element['#value'] = $values;
