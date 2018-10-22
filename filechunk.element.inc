@@ -17,6 +17,7 @@ function filechunk_element_info() {
       '#value_callback'     => 'filechunk_element_value',
       '#element_validate'   => ['filechunk_element_validate'],
       '#upload_validators'  => [],
+      '#transliterate_name' => true,
       // Use the next for Field API compatibility only.
       '#convert_to_array'   => false,
       // And the next one too (makes file field happy).
@@ -161,7 +162,11 @@ function filechunk_element_value(&$element, $input = false, $form_state = null) 
       // will pass and we should not leave anything stalling as permanent.
       foreach ($files as $index => $file) {
         if (0 !== strpos($file->uri, $defaultLocation)) {
-          $file = file_move($file, $defaultLocation . $file->filename);
+          $filename = $file->filename;
+          if ($element['#transliterate_name'] && function_exists('transliteration_clean_filename')) {
+            $filename = transliteration_clean_filename($filename);
+          }
+          $file = file_move($file, $defaultLocation . $filename);
           if (!$file) {
             form_error($element, t("Could not move the uploaded file."));
             unset($files[$index]);
